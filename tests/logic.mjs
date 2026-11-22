@@ -13,6 +13,7 @@ import { latestBalances } from "../js/balances.js";
 import { biggestNonEssentials, budgetsFor, dailyAllowance, fullMonths, monthProgress, outlook, typicalSpending } from "../js/budget.js";
 import { expectedIncome, monthlyIncome, regularIncome } from "../js/income.js";
 import { coveredByStatement, moveRows, partnerId } from "../js/manual.js";
+import { paydayNudge } from "../js/payday.js";
 import { categoryGrid, gridCsv, inOut, months as trendMonths, niceCeiling, pace } from "../js/trends.js";
 import { longestWithout, regularPayments, yearStats } from "../js/wrapped.js";
 
@@ -462,6 +463,19 @@ await check("money moved by hand", () => {
     { account: "…4720", booked_on: "2026-12-10", amount: 2000 },
   ];
   assert.deepEqual(coveredByStatement(statement, [out, into]), [out.id]);
+});
+
+await check("the nudge before payday", () => {
+  // Payday the 26th, today the 23rd: £2,500 in, £96.95 of bills to come,
+  // about £20 a day: keeps £96.95 + £60 + £400 back, moves £1,900.
+  assert.deepEqual(paydayNudge({ today: 23, payDay: 26, spending: 2500, billsBefore: 96.95, dailySpend: 20 }), { days: 3, suggest: 1900, keep: 557 });
+  // Too early in the month.
+  assert.equal(paydayNudge({ today: 20, payDay: 26, spending: 2500 }), null);
+  // Pay's late: still showing, nothing to keep for days ahead.
+  assert.equal(paydayNudge({ today: 28, payDay: 28, spending: 1000, dailySpend: 20 }).suggest, 600);
+  // Not enough to bother.
+  assert.equal(paydayNudge({ today: 25, payDay: 26, spending: 430 }), null);
+  assert.equal(paydayNudge({ today: 25, payDay: null, spending: 3000 }), null);
 });
 
 await check("latest balances", () => {

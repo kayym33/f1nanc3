@@ -97,7 +97,7 @@ export async function finishConnecting(ctx, params) {
 // so f1nanc3 (and the savings goal) shows it before the statement does.
 const moveState = { message: null, error: null };
 
-function moveHtml(ctx) {
+function moveHtml(ctx, amount = "") {
   const accounts = ctx.finance.accountList();
   if (accounts.length < 2) return "";
   const savings = accounts.find((account) => ctx.finance.accountKind(account) === "savings") ?? accounts[1];
@@ -106,7 +106,7 @@ function moveHtml(ctx) {
   const today = new Date();
   const date = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, "0")}-${String(today.getDate()).padStart(2, "0")}`;
   return `
-    ${heading("move money")}
+    <span id="move-money"></span>${heading("move money")}
     <p class="hint">moved money in your banking app? add it here and it shows straight away. When the statement comes in, its own record replaces this one, so nothing counts twice.</p>
     ${moveState.message ? `<p class="flash">${esc(moveState.message)}</p>` : ""}
     ${moveState.error ? `<p class="error">${esc(moveState.error)}</p>` : ""}
@@ -116,7 +116,7 @@ function moveHtml(ctx) {
         <label>to<span class="select-row"><select name="to">${options(savings)}</select><span class="caret" aria-hidden="true">▾</span></span></label>
       </div>
       <div class="pair">
-        <label>amount<input name="amount" type="text" inputmode="decimal" placeholder="£" required autocomplete="off"></label>
+        <label>amount<input name="amount" type="text" inputmode="decimal" placeholder="£" required autocomplete="off" value="${esc(amount)}"></label>
         <label>date<input name="date" type="date" value="${date}" required></label>
       </div>
       <button type="submit" class="button solid">add the move</button>
@@ -148,7 +148,7 @@ function accountsHtml(ctx) {
     <p class="hint">names show in the list and the balance; savings are counted apart from money to spend</p>`;
 }
 
-export function render(ctx) {
+export function render(ctx, params = {}) {
   const count = ctx.finance.transactions.length;
   return {
     crumbs: ["settings"],
@@ -161,7 +161,7 @@ export function render(ctx) {
       <p>${plural(count, "transaction")}, kept for the current month and the 12 before it.</p>
       <div class="row-buttons">${button("import a statement ›", "go", { to: "/import" }, { solid: true })}</div>
       ${accountsHtml(ctx)}
-      ${moveHtml(ctx)}
+      ${moveHtml(ctx, params.move ?? "")}
       ${BANK_CONNECTION ? `${heading("bank")}${bankHtml(ctx)}` : ""}
       ${heading("theme")}
       <div class="chips">${THEMES.map((choice) => `<button type="button" class="chip${choice === theme() ? " on" : ""}" ${action("me-theme", { value: choice })}>${choice}</button>`).join("")}</div>

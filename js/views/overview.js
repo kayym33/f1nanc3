@@ -1,7 +1,9 @@
 // A month at a glance: money in and out, spending by category, and the
 // latest transactions.
 import { latestBalances } from "../balances.js";
-import { expectedIncome } from "../income.js";
+import { expectedIncome, monthlyIncome } from "../income.js";
+import { paydayNudge } from "../payday.js";
+import { billDays, findSubscriptions } from "../subscriptions.js";
 import { addMonths, dayLabel, monthLabel, monthOf, pounds, windowMonths } from "../money.js";
 import { monthSummary } from "../summary.js";
 import { action, bar, button, esc, heading, notReady } from "../ui.js";
@@ -10,6 +12,49 @@ import { transactionRow } from "./transactions.js";
 
 // The phone shows the first 5 of these (style.css); a wide screen all.
 const LATEST = 12;
+
+// Before payday: what's safe to move to savings. Hidden once you've done
+// it this month (remembered on this device) or once pay lands.
+const NUDGE_KEY = "f1nanc3.nudgeDone";
+
+function nudgeDone(month) {
+  try {
+    return localStorage.getItem(NUDGE_KEY) === month;
+  } catch {
+    return false;
+  }
+}
+
+function nudgeHtml(ctx) {
+  const month = monthOf(new Date());
+  if (nudgeDone(month)) return "";
+  const { transactions } = ctx.finance;
+  const main = monthlyIncome(transactions).sources[0];
+  const pay = main && expectedIncome(transactions).find((p) => p.name === main.name);
+  if (!pay) return "";
+  const today = new Date().getDate();
+  const balances = latestBalances(transactions);
+  const spendingAccounts = balances.filter((b) => ctx.finance.accountKind(b.account) === "spending");
+  if (!spendingAccounts.length || !balances.some((b) => ctx.finance.accountKind(b.account) === "savings")) return "";
+  const spending = spendingAccounts.reduce((sum, b) => sum + b.balance, 0);
+  const billsBefore = billDays(findSubscriptions(transactions, ctx.finance.subscriptionSettings))
+    .filter((mark) => !mark.gone && mark.day >= today && mark.day < pay.day)
+    .reduce((sum, mark) => sum + mark.amount, 0);
+  const picture = budgetPicture(ctx);
+  const monthly = picture.plan ? Object.values(picture.budgets).reduce((a, b) => a + b, 0) : picture.typicalTotal;
+  const nudge = paydayNudge({ today, payDay: pay.day, spending, billsBefore, dailySpend: monthly / 30 });
+  if (!nudge) return "";
+  // The newest import: an account with nothing new isn't out of date.
+  const asOf = spendingAccounts.map((b) => b.date).sort().at(-1);
+  const stale = (Date.now() - Date.parse(`${asOf}T12:00:00`)) / 86400000 > 3;
+  const when = nudge.days === 0 ? "payday's today" : nudge.days === 1 ? "payday's tomorrow" : `payday's in ${nudge.days} days`;
+  return `
+    <div class="nudge">
+      <p><b>${esc(when)}</b> · about <b>${esc(pounds(nudge.suggest).replace(".00", ""))}</b> is spare to move to savings</p>
+      <p class="hint">keeping ${esc(pounds(nudge.keep).replace(".00", ""))} back for bills before payday, day-to-day spending and a cushion${stale ? ` · balances are from your import on ${esc(dayLabel(asOf))}, so check your bank app first` : ""}</p>
+      <div class="row-buttons">${button("add the move", "go", { to: `/settings?move=${nudge.suggest}` }, { solid: true })}${button("done", "nudge-done", { month })}</div>
+    </div>`;
+}
 
 // What's in your accounts, as of each one's latest transaction: money to
 // spend and savings apart, each account named as you named it.
@@ -91,6 +136,7 @@ export function render(ctx, { month }) {
           <div><dt>left</dt><dd>${pounds(net, { sign: true })}</dd>${payTotal ? `<span class="note">about ${esc(pounds(Math.round(net + payTotal), { sign: true }).replace(".00", ""))} after pay</span>` : ""}</div>
         </dl>
       </div>
+      ${current ? nudgeHtml(ctx) : ""}
       ${current ? balanceHtml(ctx) : ""}
       ${current ? budgetBox(ctx) : ""}
       <button type="button" class="wrapped-link" ${action("go", { to: "/wrapped" })}><span>✶</span> your year, wrapped <span class="go">›</span></button>
@@ -111,3 +157,15 @@ export function render(ctx, { month }) {
       </div>`,
   };
 }
+
+export const actions = {
+  // "Done" hides the nudge until next month, on this device.
+  "nudge-done"(ctx, { month }) {
+    try {
+      localStorage.setItem(NUDGE_KEY, month);
+    } catch {
+      // Storage is off: it shows again next time.
+    }
+    ctx.render();
+  },
+};
