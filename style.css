@@ -363,6 +363,7 @@ nav a.on::before { content: ""; position: absolute; left: 0; right: 0; top: 0; h
   .chip { min-height: 30px; padding: 3px 10px; }
   .button:hover, .chip:hover, .step:hover { background: var(--hover); }
   .button.solid:hover { background: var(--ink-soft); }
+  .chip.on:hover { background: var(--ink); }
   input, select, textarea { font-size: 14px; padding: 7px 10px; }
   select { min-height: 36px; }
   .step { min-width: 36px; min-height: 36px; font-size: 17px; }

@@ -5,7 +5,7 @@ const CACHE = "f1nanc3-shell";
 const SHELL = [
   "./", "index.html", "style.css", "manifest.webmanifest", "icons/icon-180.png", "icons/icon-192.png",
   "js/app.js", "js/categories.js", "js/cloud.js", "js/config.js", "js/csv.js", "js/data.js",
-  "js/money.js", "js/summary.js", "js/ui.js",
+  "js/money.js", "js/summary.js", "js/theme.js", "js/ui.js",
   "js/views/importer.js", "js/views/me.js", "js/views/overview.js", "js/views/transactions.js",
 ];
 

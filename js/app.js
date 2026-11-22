@@ -4,6 +4,7 @@
 // to by name (data-action="tx-more"). Modelled on t1ld3's phone app.
 import { AuthError, Cloud } from "./cloud.js";
 import { Finance } from "./data.js";
+import { applyTheme } from "./theme.js";
 import { esc, WIDE, wide } from "./ui.js";
 import * as importer from "./views/importer.js";
 import * as me from "./views/me.js";
@@ -187,7 +188,7 @@ finance.listeners.push(render);
 document.addEventListener("visibilitychange", () => {
   if (document.visibilityState === "visible" && Date.now() - loadedAt > STALE_MS) load();
 });
-matchMedia("(prefers-color-scheme: dark)").addEventListener("change", fillNoise);
+matchMedia("(prefers-color-scheme: dark)").addEventListener("change", applyTheme);
 // Crossing between phone and desktop widths changes some views' markup.
 matchMedia(WIDE).addEventListener("change", () => render());
 window.addEventListener("unhandledrejection", (event) => {
@@ -196,6 +197,7 @@ window.addEventListener("unhandledrejection", (event) => {
 
 history.scrollRestoration = "manual";
 if ("serviceWorker" in navigator) navigator.serviceWorker.register("./sw.js").catch(() => {});
+applyTheme();
 fillNoise();
 render();
 load();
