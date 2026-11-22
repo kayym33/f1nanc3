@@ -2,7 +2,7 @@
 // three plans and what each means for the goal, the budgets themselves
 // (yours to change), and where the non-essential money goes.
 import { latestBalances } from "../balances.js";
-import { biggestNonEssentials, budgetsFor, dailyAllowance, ESSENTIALS, FLEXIBLE, GOAL_MONTHS, monthProgress, outlook, PLANS, typicalSpending } from "../budget.js";
+import { biggestNonEssentials, budgetsFor, fullMonths, dailyAllowance, ESSENTIALS, FLEXIBLE, GOAL_MONTHS, monthProgress, outlook, PLANS, typicalSpending } from "../budget.js";
 import { displayName } from "../categories.js";
 import { monthlyIncome } from "../income.js";
 import { monthLabel, monthOf, pounds, sum } from "../money.js";
@@ -28,14 +28,17 @@ export function budgetPicture(ctx) {
   const savings = latestBalances(transactions).filter((b) => finance.accountKind(b.account) === "savings");
   const saved = Math.round(sum(savings.map((b) => b.balance)) * 100) / 100;
   const goal = Math.round(income.main * GOAL_MONTHS);
-  const typical = typicalSpending(transactions, fixedMerchants);
+  // Only months since your current pay started: a new job means new money.
+  const since = income.sources[0]?.first?.slice(0, 7) ?? null;
+  const counted = fullMonths(new Date(), 6, since);
+  const typical = typicalSpending(transactions, fixedMerchants, new Date(), since);
   const plan = finance.budget.plan;
   const own = finance.budget.amounts ?? {};
   const outlooks = Object.fromEntries(Object.keys(PLANS).map((name) => [name, outlook({ pay, fixed, budgets: budgetsFor(typical, name, own), saved, goal })]));
   const budgets = plan ? budgetsFor(typical, plan, own) : {};
   const progress = plan ? monthProgress(transactions, budgets, fixedMerchants) : [];
   return {
-    pay, income, fixed, subs, fixedMerchants, saved, hasSavings: savings.length > 0, goal, typical, plan, own, budgets, outlooks,
+    pay, income, since, counted, fixed, subs, fixedMerchants, saved, hasSavings: savings.length > 0, goal, typical, plan, own, budgets, outlooks,
     current: plan ? outlook({ pay, fixed, budgets, saved, goal }) : null,
     progress, allowance: plan ? dailyAllowance(progress) : 0,
     typicalTotal: Math.round(sum(Object.values(typical)) * 100) / 100,
@@ -74,7 +77,10 @@ export function render(ctx) {
   const p = budgetPicture(ctx);
   const share = p.goal > 0 ? Math.min(1, Math.max(0, p.saved / p.goal)) : 0;
   const over = p.progress.filter((row) => row.share >= 0.8).sort((a, b) => b.share - a.share);
-  const nonEssentials = biggestNonEssentials(ctx.finance.transactions, p.fixedMerchants, new Date(), 6);
+  const nonEssentials = biggestNonEssentials(ctx.finance.transactions, p.fixedMerchants, new Date(), 6, p.since);
+  const windowNote = p.counted.length
+    ? `a typical month is the middle of ${p.counted.length === 1 ? "your last full month" : `your last ${p.counted.length} full months`}${p.since && p.counted.length < 6 ? ` (since your pay started in ${monthLabel(p.since).split(" ")[0]})` : ""}`
+    : "there isn't a full month since your pay started yet, so there's no typical month to go on";
   const flexible = FLEXIBLE.filter((category) => p.typical[category] > 0 || p.own[category] !== undefined);
 
   return {
@@ -115,7 +121,7 @@ export function render(ctx) {
       </dl>
 
       ${heading("budgets")}
-      <p class="hint">a typical month is the middle of your last 6 full months; ${p.plan ? "change any budget and it stays as you set it" : "pick a plan to set them"}</p>
+      <p class="hint">${esc(windowNote)}; ${p.plan ? "change any budget and it stays as you set it" : "pick a plan to set them"}</p>
       <table class="budget-table">
         <thead><tr><th>category</th><th class="num">typical</th><th class="num">budget</th></tr></thead>
         <tbody>${flexible.map((category) => `
@@ -133,7 +139,7 @@ export function render(ctx) {
 
       ${nonEssentials.length ? `
         ${heading("where the non-essential money goes")}
-        <p class="hint">a typical month over the last 6; the places where cutting back adds up</p>
+        <p class="hint">a typical month over the same months; the places where cutting back adds up</p>
         <ul class="where">${nonEssentials.map((row) => `<li><span>${esc(displayName(row.merchant))} <small class="muted">${esc(row.category)}</small></span><b>${esc(whole(row.monthly))}</b></li>`).join("")}</ul>` : ""}`,
   };
 }

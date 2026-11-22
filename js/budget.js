@@ -33,17 +33,20 @@ const round = (value) => Math.round(value * 100) / 100;
 // Budgets are whole pounds, rounded to £5 above £50.
 const tidy = (value) => (value >= 50 ? Math.round(value / 5) * 5 : Math.round(value));
 
-// The last `count` whole months before this one, oldest first.
-export function fullMonths(today = new Date(), count = 6) {
+// The last `count` whole months before this one, oldest first; none
+// before `since` ("2026-06"), when your current pay started, since a
+// different job meant different money.
+export function fullMonths(today = new Date(), count = 6, since = null) {
   const current = monthOf(today);
-  return Array.from({ length: count }, (_, i) => addMonths(current, i - count));
+  const months = Array.from({ length: count }, (_, i) => addMonths(current, i - count));
+  return since ? months.filter((month) => month >= since) : months;
 }
 
 // A typical month in each flexible category, leaving out payments to
 // subscriptions and bills (they're fixed, and counted apart):
 // {category: amount}. Months with no data at all don't count.
-export function typicalSpending(transactions, fixedMerchants = new Set(), today = new Date()) {
-  const months = fullMonths(today);
+export function typicalSpending(transactions, fixedMerchants = new Set(), today = new Date(), since = null) {
+  const months = fullMonths(today, 6, since);
   const seen = new Set(transactions.map((t) => t.booked_on.slice(0, 7)));
   const counted = months.filter((month) => seen.has(month));
   const typical = {};
@@ -58,8 +61,9 @@ export function typicalSpending(transactions, fixedMerchants = new Set(), today 
 
 // The biggest non-essential merchants in a typical month, where cutting
 // back would count: [{merchant, category, monthly}].
-export function biggestNonEssentials(transactions, fixedMerchants = new Set(), today = new Date(), count = 5) {
-  const months = fullMonths(today);
+export function biggestNonEssentials(transactions, fixedMerchants = new Set(), today = new Date(), count = 5, since = null) {
+  const months = fullMonths(today, 6, since);
+  if (!months.length) return [];
   const totals = new Map();
   for (const t of transactions) {
     if (t.amount >= 0 || !FLEXIBLE.includes(t.category) || ESSENTIALS.has(t.category) || fixedMerchants.has(t.merchant)) continue;

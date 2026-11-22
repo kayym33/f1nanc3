@@ -18,7 +18,7 @@ const median = (values) => {
 };
 
 // Money that comes in about once a month from the same place, for a
-// roughly similar amount: [{merchant, name, amount, last, next}], biggest
+// roughly similar amount: [{merchant, name, amount, first, last, next}], biggest
 // first. `amount` is the typical recent one: the middle of the last three.
 // Only income counts (not transfers between your own accounts).
 export function regularIncome(transactions) {
@@ -39,7 +39,7 @@ export function regularIncome(transactions) {
     if (!steady) continue;
     const last = payments.at(-1);
     const typical = median(payments.slice(-3).map((t) => t.amount));
-    found.push({ merchant, name: displayName(merchant), amount: typical, last: last.booked_on, next: nextMonth(last.booked_on) });
+    found.push({ merchant, name: displayName(merchant), amount: typical, first: payments[0].booked_on, last: last.booked_on, next: nextMonth(last.booked_on) });
   }
   return found.sort((a, b) => b.amount - a.amount);
 }
