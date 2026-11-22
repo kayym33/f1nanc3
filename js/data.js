@@ -2,6 +2,7 @@
 // Supabase and kept in memory while the app is open. Nothing is stored on
 // the device itself: bank data stays on the server, behind the sign-in.
 import { notAlreadyThere } from "./bank.js";
+import { AuthError } from "./cloud.js";
 import { guessCategory, merchantOf } from "./categories.js";
 import { windowStart } from "./money.js";
 
@@ -42,6 +43,8 @@ export class Finance {
       if (await this.reread()) this.transactions = await this.fetchTransactions();
       this.state = "ready";
     } catch (error) {
+      // A sign-in the server no longer accepts: back to signing in.
+      if (error instanceof AuthError) this.cloud.forget();
       this.state = "error";
       this.error = error.message ?? String(error);
     }

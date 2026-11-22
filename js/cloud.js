@@ -1,10 +1,12 @@
 // A small Supabase client: email/password sign-in (the t1ld3 account)
 // and the fin_* tables. Based on t1ld3's phone/js/cloud.js.
-import { API_URL, SUPABASE_KEY } from "./config.js";
+import { API_URL, SUPABASE_KEY, SUPABASE_URL } from "./config.js";
 
 // Its own key, so signing in or out here doesn't touch t1ld3's phone app
 // (they're on different addresses anyway, so storage is separate).
-const SESSION_KEY = "f1nanc3.session";
+// A copy pointed at a stand-in server (?api=, localhost only) keeps its
+// sign-in apart, so a pretend sign-in is never sent to the real server.
+const SESSION_KEY = API_URL === SUPABASE_URL ? "f1nanc3.session" : `f1nanc3.session@${new URL(API_URL).host}`;
 // Refresh this long (seconds) before the access token actually expires.
 const REFRESH_MARGIN = 60;
 const PAGE_SIZE = 1000;
@@ -54,6 +56,12 @@ export class Cloud {
   constructor() {
     this.session = loadSession();
     this.refreshing = null;
+  }
+
+  // Forgets a sign-in the server has rejected, so the app asks again.
+  forget() {
+    this.session = null;
+    saveSession(null);
   }
 
   get signedIn() {

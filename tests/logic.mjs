@@ -4,11 +4,12 @@ import assert from "node:assert/strict";
 import { accountLast4, bankRow, describe, notAlreadyThere, signedAmount } from "../js/bank.js";
 import { guessCategory, merchantOf } from "../js/categories.js";
 import { knownService } from "../js/services.js";
-import { findSubscriptions, nextMonth, priceChange } from "../js/subscriptions.js";
+import { billDays, findSubscriptions, nextMonth, priceChange, projection } from "../js/subscriptions.js";
 import { parseAmount, parseDate, parseRows, readStatement } from "../js/csv.js";
 import { allocateRows, bandTop, riverBands, riverLayout } from "../js/flow.js";
 import { addMonths, pounds, sum, windowMonths, windowStart } from "../js/money.js";
 import { monthSummary } from "../js/summary.js";
+import { categoryGrid, gridCsv, inOut, months as trendMonths, niceCeiling, pace } from "../js/trends.js";
 import { longestWithout, regularPayments, yearStats } from "../js/wrapped.js";
 
 let failures = 0;
@@ -333,6 +334,57 @@ await check("finding subscriptions", () => {
   assert.equal(nextMonth("2026-01-31"), "2026-02-28");
   assert.equal(nextMonth("2026-12-15"), "2027-01-15");
   assert.equal(priceChange([pay("x", "2026-01-01", -5), pay("x", "2026-02-01", -5)]), null);
+});
+
+await check("the charts' numbers", () => {
+  const t = (booked_on, amount, category) => ({ booked_on, amount, category });
+  const list = [
+    t("2026-10-01", 2000, "income"), t("2026-10-03", -50, "groceries"), t("2026-10-20", -30, "eating out"),
+    t("2026-10-21", -500, "transfers"), t("2026-11-01", 2000, "income"), t("2026-11-02", -40, "groceries"),
+    t("2026-11-05", 10, "groceries"), t("2026-11-20", -25, "eating out"),
+  ];
+  const ms = trendMonths(new Date(2026, 10, 22));
+  assert.equal(ms.length, 13);
+  assert.equal(ms[0], "2025-11");
+  assert.equal(ms.at(-1), "2026-11");
+  const io = inOut(list, ["2026-10", "2026-11"]);
+  assert.deepEqual(io[0], { month: "2026-10", in: 2000, out: 80, left: 1920 });
+  assert.equal(io[1].out, 55);
+  const grid = categoryGrid(list, ["2026-10", "2026-11"]);
+  assert.deepEqual(grid.rows.map((r) => [r.category, r.values]), [["groceries", [50, 30]], ["eating out", [30, 25]]]);
+  assert.deepEqual(grid.totals, [80, 55]);
+  assert.equal(grid.total, 135);
+  assert.equal(grid.rows[0].average, 40);
+  const csv = gridCsv(grid, ["2026-10", "2026-11"]).split("\r\n");
+  assert.equal(csv[0], "category,october 2026,november 2026,total");
+  assert.equal(csv[1], "groceries,50.00,30.00,80.00");
+  assert.equal(csv[3], "total,80.00,55.00,135.00");
+  const p = pace(list, new Date(2026, 10, 22));
+  assert.equal(p.thisMonth.length, 22);
+  assert.equal(p.thisMonth[1], 40);
+  assert.equal(p.thisMonth[4], 30);
+  assert.equal(p.thisMonth.at(-1), 55);
+  assert.equal(p.lastMonth.length, 31);
+  assert.equal(p.lastMonth.at(-1), 80);
+  assert.equal(niceCeiling(180), 200);
+  assert.equal(niceCeiling(1234), 2000);
+  assert.equal(niceCeiling(4.2), 5);
+});
+
+await check("bill days and the month's projection", () => {
+  const sub = (name, last, next, monthly, extra = {}) => ({ name, kind: "bill", last, next, monthly, ended: false, hidden: false, ...extra });
+  const marks = billDays([
+    sub("energy", "2026-11-05", "2026-12-05", 88),
+    sub("rent", "2026-10-28", "2026-11-28", 650),
+    sub("sky", "2026-10-30", "2026-11-30", 96.95),
+    sub("gym", "2026-08-02", "2026-09-02", 25, { ended: true }),
+    sub("hidden", "2026-10-25", "2026-11-25", 9, { hidden: true }),
+    sub("late", "2026-10-20", "2026-11-20", 10),
+  ], new Date(2026, 10, 22));
+  assert.deepEqual(marks.map((m) => [m.name, m.day, m.gone]), [["energy", 5, true], ["late", 20, false], ["rent", 28, false], ["sky", 30, false]]);
+  const steps = projection(700, marks, 22, 30);
+  // The late one comes out "today"; then rent on the 28th, Sky on the 30th.
+  assert.deepEqual(steps, [[22, 700], [22, 700], [22, 710], [28, 710], [28, 1360], [30, 1360], [30, 1456.95], [30, 1456.95]]);
 });
 
 if (failures) {
