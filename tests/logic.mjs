@@ -10,6 +10,7 @@ import { allocateRows, bandTop, riverBands, riverLayout } from "../js/flow.js";
 import { addMonths, pounds, sum, windowMonths, windowStart } from "../js/money.js";
 import { monthSummary } from "../js/summary.js";
 import { latestBalances } from "../js/balances.js";
+import { biggestNonEssentials, budgetsFor, dailyAllowance, fullMonths, monthProgress, outlook, typicalSpending } from "../js/budget.js";
 import { expectedIncome, regularIncome } from "../js/income.js";
 import { categoryGrid, gridCsv, inOut, months as trendMonths, niceCeiling, pace } from "../js/trends.js";
 import { longestWithout, regularPayments, yearStats } from "../js/wrapped.js";
@@ -417,6 +418,49 @@ await check("latest balances", () => {
     t("…9999", "2026-11-18", 300, 3500), t("…0000", "2026-11-18", -5, null),
   ]);
   assert.deepEqual(balances, [{ account: "…5231", balance: 470, date: "2026-11-20" }, { account: "…9999", balance: 3500, date: "2026-11-18" }]);
+});
+
+await check("the budget", () => {
+  const t = (booked_on, amount, category, merchant = category) => ({ booked_on, amount, category, merchant });
+  const today = new Date(2026, 10, 22);
+  assert.deepEqual(fullMonths(today), ["2026-05", "2026-06", "2026-07", "2026-08", "2026-09", "2026-10"]);
+  const list = [];
+  for (const [i, month] of ["2026-05", "2026-06", "2026-07", "2026-08", "2026-09", "2026-10"].entries()) {
+    list.push(t(`${month}-03`, -200 - i * 10, "groceries", "tesco"));
+    list.push(t(`${month}-10`, -100, "eating out", "deliveroo"));
+    list.push(t(`${month}-12`, -12.99, "entertainment", "netflix"));
+    list.push(t(`${month}-28`, -650, "other", "to a/c …5555"));
+  }
+  // One huge month doesn't move the typical one (the middle of six).
+  list.push(t("2026-07-20", -900, "eating out", "wedding"));
+  const fixed = new Set(["netflix", "to a/c …5555"]);
+  const typical = typicalSpending(list, fixed, today);
+  assert.equal(typical.groceries, 225);
+  assert.equal(typical["eating out"], 100);
+  // Subscriptions and rent are fixed, so not in the flexible categories.
+  assert.equal(typical.entertainment, 0);
+  assert.equal(typical.other, 0);
+  const steady = budgetsFor(typical, "steady");
+  assert.deepEqual(steady, { groceries: 225, "eating out": 90 });
+  const hard = budgetsFor(typical, "hard");
+  assert.deepEqual(hard, { groceries: 205, "eating out": 55 });
+  // Your own change wins.
+  assert.equal(budgetsFor(typical, "hard", { "eating out": 70 })["eating out"], 70);
+  const plan = outlook({ pay: 1850, fixed: 662.99, budgets: steady, saved: 1000, goal: 2775 });
+  assert.equal(plan.saving, 872.01);
+  assert.equal(plan.monthsToGoal, 3);
+  assert.equal(outlook({ pay: 900, fixed: 800, budgets: steady, saved: 0, goal: 1000 }).monthsToGoal, null);
+  assert.equal(outlook({ pay: 1850, fixed: 0, budgets: {}, saved: 3000, goal: 2775 }).monthsToGoal, 0);
+  // This month: 22 days into 30.
+  const now = [t("2026-11-04", -150, "groceries", "tesco"), t("2026-11-10", -80, "eating out", "deliveroo"), t("2026-11-12", -12.99, "entertainment", "netflix")];
+  const progress = monthProgress(now, steady, fixed, today);
+  const eating = progress.find((row) => row.category === "eating out");
+  assert.equal(eating.left, 10);
+  assert.ok(eating.pace > 1);
+  assert.ok(progress.find((row) => row.category === "groceries").pace < 1);
+  // £75 + £10 left over 9 days (the 22nd to the 30th).
+  assert.equal(dailyAllowance(progress, today), 9.44);
+  assert.deepEqual(biggestNonEssentials(list, fixed, today).map((row) => row.merchant), ["wedding", "deliveroo"]);
 });
 
 if (failures) {

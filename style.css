@@ -471,6 +471,50 @@ nav a.on::before { content: ""; position: absolute; left: 0; right: 0; top: 0; h
 .account-name input { padding: 6px 8px; }
 .balance-note { font-size: 12px; }
 
+/* The budget (views/budget.js) and the overview's budget box. */
+.goal .big { color: var(--ink); font-size: 24px; font-weight: 700; font-variant-numeric: tabular-nums; }
+.goal p { margin: 4px 0; }
+.goal-bar { letter-spacing: -0.05em; white-space: nowrap; overflow: hidden; }
+.allowance { color: var(--ink); margin: 4px 0 8px; }
+.allowance b { font-size: 18px; }
+.warn-flash { border-left-color: var(--warning); }
+.budget-meters li { grid-template-columns: minmax(7em, 1fr) auto minmax(7em, auto); grid-template-rows: auto auto; }
+.budget-meters .note { grid-column: 1 / -1; color: var(--muted); font-size: 12px; margin-top: -2px; }
+.budget-meters .amount small { color: var(--muted); font-weight: 400; }
+.budget-meters li.warn .bar-fill { color: var(--warning); }
+.budget-meters li.over .bar-fill, .budget-meters li.over .amount { color: var(--warning); }
+.budget-meters li.warn .note, .budget-meters li.over .note { color: var(--warning); }
+.plans { display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 10px; margin: 8px 0; }
+.plan {
+  appearance: none; text-align: left; font: inherit; color: var(--ink-soft); background: transparent;
+  border: 1px solid var(--rule); border-radius: 0; padding: 12px; display: flex; flex-direction: column; gap: 4px; cursor: pointer;
+}
+.plan:hover { border-color: var(--ink); }
+.plan.on { border: 2px solid var(--ink); padding: 11px; }
+.plan-name { color: var(--ink); font-weight: 700; text-transform: uppercase; font-size: 12px; letter-spacing: 0.04em; }
+.plan.on .plan-name::after { content: " · yours"; color: var(--accent-text); }
+.plan-saving { font-size: 22px; font-weight: 700; font-variant-numeric: tabular-nums; }
+.plan-saving small { font-size: 12px; font-weight: 400; color: var(--muted); margin-left: 6px; }
+.plan-goal { color: var(--ink); }
+.plan-about { color: var(--muted); font-size: 12px; }
+.good { color: var(--good); }
+.bad { color: var(--bad); }
+.sums .total { border-top: 1px solid var(--ink); }
+.sums .total dt, .sums .total dd { font-weight: 700; }
+.budget-table { width: 100%; border-collapse: collapse; margin-top: 6px; font-variant-numeric: tabular-nums; }
+.budget-table th, .budget-table td { padding: 6px 4px; border-bottom: 1px solid var(--rule); text-align: left; font-weight: 400; }
+.budget-table thead th { color: var(--muted); font-size: 11px; font-weight: 700; text-transform: uppercase; border-bottom-color: var(--ink); }
+.budget-table tbody th { color: var(--ink); }
+.budget-table .num { text-align: right; }
+.budget-table small.essential { color: var(--muted); font-size: 11px; margin-left: 6px; }
+.budget-amount { display: inline-flex; align-items: center; gap: 4px; justify-content: flex-end; }
+.budget-amount input { width: 5.5em; padding: 4px 6px; text-align: right; }
+.where li { display: flex; justify-content: space-between; gap: 12px; padding: 7px 0; border-bottom: 1px solid var(--rule); color: var(--ink); }
+.budget-box { margin-top: 14px; }
+.budget-box h2 { margin-top: 6px; }
+.budget-link span:first-child { color: var(--accent); }
+main[data-view="budget"] { max-width: 820px; }
+
 /* The ⚙ at the top right: settings. */
 .cog { color: var(--muted); text-decoration: none; font-size: 22px; line-height: 1; padding: 4px 2px 4px 10px; }
 .cog.on { color: var(--accent-text); }

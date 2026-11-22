@@ -5,6 +5,7 @@ import { expectedIncome } from "../income.js";
 import { addMonths, dayLabel, monthLabel, monthOf, pounds, windowMonths } from "../money.js";
 import { monthSummary } from "../summary.js";
 import { action, bar, button, esc, heading, notReady } from "../ui.js";
+import { budgetPicture, progressRow } from "./budget.js";
 import { transactionRow } from "./transactions.js";
 
 // The phone shows the first 5 of these (style.css); a wide screen all.
@@ -32,6 +33,22 @@ function balanceHtml(ctx) {
       ${spend.length ? `<div>${sum(spend)} to spend ${parts(spend)}</div>` : ""}
       ${saved.length ? `<div>${sum(saved)} saved ${parts(saved)}</div>` : ""}
       <p class="hint">balances as of ${esc(dayLabel(latest))}, from your last import${ctx.finance.accounts.size ? "" : " · name your accounts in settings ⚙"}</p>
+    </div>`;
+}
+
+// This month against the budget: what's left a day, and any category at
+// 80% or more (the in-app alert). A nudge to set one up if there's none.
+function budgetBox(ctx) {
+  const picture = budgetPicture(ctx);
+  if (!picture.plan) {
+    return `<button type="button" class="wrapped-link budget-link" ${action("go", { to: "/budget" })}><span>£</span> set up your budget: saving towards ${esc(pounds(picture.goal).replace(".00", ""))} <span class="go">›</span></button>`;
+  }
+  const hot = picture.progress.filter((row) => row.share >= 0.8).sort((a, b) => b.share - a.share);
+  return `
+    <div class="budget-box">
+      <div class="section-head">${heading("budget")}${button("budget ›", "go", { to: "/budget" }, { small: true })}</div>
+      <p class="allowance">about <b>${esc(pounds(picture.allowance).replace(/\.\d\d$/, ""))}</b> a day to spend for the rest of the month</p>
+      ${hot.length ? `<ul class="meters budget-meters">${hot.map(progressRow).join("")}</ul>` : `<p class="muted">every budget is under 80%</p>`}
     </div>`;
 }
 
@@ -75,6 +92,7 @@ export function render(ctx, { month }) {
         </dl>
       </div>
       ${current ? balanceHtml(ctx) : ""}
+      ${current ? budgetBox(ctx) : ""}
       <button type="button" class="wrapped-link" ${action("go", { to: "/wrapped" })}><span>✶</span> your year, wrapped <span class="go">›</span></button>
       <div class="columns">
         <section>

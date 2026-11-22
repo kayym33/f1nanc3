@@ -88,6 +88,15 @@ export const SERVICES = [
   { name: "Plusnet", kind: "bill", match: ["plusnet"], url: "https://www.plus.net/member-centre/" },
   { name: "Hyperoptic", kind: "bill", match: ["hyperoptic"], url: "https://www.hyperoptic.com/account/" },
   { name: "Community Fibre", kind: "bill", match: ["community fibre"], url: "https://www.communityfibre.co.uk/" },
+  // Finance and buy-now-pay-later repayments: fixed until they're paid off.
+  { name: "Klarna", kind: "bill", match: ["klarna"], url: "https://app.klarna.com/" },
+  { name: "V12 Retail Finance", kind: "bill", match: ["v12 retail", "v12 finance"], url: "https://www.v12retailfinance.com/" },
+  { name: "PayPal Pay in 3", kind: "bill", match: ["paypal pay in", "pay in 3"], url: "https://www.paypal.com/myaccount/" },
+  { name: "Clearpay", kind: "bill", match: ["clearpay"], url: "https://www.clearpay.co.uk/" },
+  { name: "Laybuy", kind: "bill", match: ["laybuy"], url: "https://www.laybuy.com/" },
+  { name: "Zilch", kind: "bill", match: ["zilch"], url: "https://www.zilch.com/uk/" },
+  { name: "Creation Finance", kind: "bill", match: ["creation finance", "creation.co"], url: "https://www.creation.co.uk/" },
+  { name: "NewDay", kind: "bill", match: ["newday", "aqua card", "marbles"], url: "https://www.newday.co.uk/" },
   // Car and insurance
   { name: "VW Financial Services", kind: "bill", match: ["vwfs", "volkswagen financial"], url: "https://www.vwfs.co.uk/" },
   { name: "Black Horse", kind: "bill", match: ["black horse"], url: "https://www.blackhorse.co.uk/" },

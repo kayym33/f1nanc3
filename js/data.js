@@ -17,6 +17,8 @@ export class Finance {
     this.subscriptionSettings = new Map();
     // Your names for accounts: "…5231" -> {name, kind: spending|savings}.
     this.accounts = new Map();
+    // Your budget: {plan, amounts}; plan is null until you pick one.
+    this.budget = { plan: null, amounts: {} };
     // idle, loading, ready or error.
     this.state = "idle";
     this.error = null;
@@ -38,6 +40,7 @@ export class Finance {
         this.loadLink(),
         this.loadSubscriptionSettings(),
         this.loadAccounts(),
+        this.loadBudget(),
       ]);
       this.transactions = transactions;
       this.rules = new Map(rules.map((rule) => [rule.merchant, rule.category]));
@@ -67,6 +70,23 @@ export class Finance {
     } catch {
       this.link = null;
     }
+  }
+
+  async loadBudget() {
+    try {
+      const [row] = await this.cloud.selectAll("fin_budget", { select: "plan,amounts" });
+      this.budget = { plan: row?.plan ?? null, amounts: row?.amounts ?? {} };
+    } catch {
+      this.budget = { plan: null, amounts: {} };
+    }
+  }
+
+  // Changes the budget: {plan} and/or {amounts}.
+  async saveBudget(changes) {
+    const next = { ...this.budget, ...changes };
+    await this.cloud.upsert("fin_budget", [{ plan: next.plan, amounts: next.amounts, updated_at: new Date().toISOString() }], "user_id");
+    this.budget = next;
+    this.changed();
   }
 
   async loadAccounts() {
@@ -181,6 +201,7 @@ export class Finance {
   clear() {
     this.subscriptionSettings = new Map();
     this.accounts = new Map();
+    this.budget = { plan: null, amounts: {} };
     this.transactions = [];
     this.rules = new Map();
     this.state = "idle";
