@@ -222,3 +222,26 @@ create policy "Users manage their own account names"
 
 revoke all on public.fin_accounts from anon;
 grant select, insert, update, delete on public.fin_accounts to authenticated;
+
+-- Your budget: the plan you picked (steady, push or hard) and any
+-- categories you've set yourself ({category: pounds}). The budgets
+-- themselves are worked out from your spending (js/budget.js).
+create table if not exists public.fin_budget (
+  user_id uuid primary key default auth.uid() references auth.users (id) on delete cascade,
+  plan text check (plan in ('steady', 'push', 'hard')),
+  amounts jsonb not null default '{}',
+  updated_at timestamptz not null default now()
+);
+
+alter table public.fin_budget enable row level security;
+
+drop policy if exists "Users manage their own budget" on public.fin_budget;
+create policy "Users manage their own budget"
+  on public.fin_budget
+  for all
+  to authenticated
+  using (user_id = (select auth.uid()))
+  with check (user_id = (select auth.uid()));
+
+revoke all on public.fin_budget from anon;
+grant select, insert, update, delete on public.fin_budget to authenticated;

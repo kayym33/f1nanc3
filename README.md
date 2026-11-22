@@ -39,6 +39,12 @@ serves it as it is.
   spreadsheet of categories by month (shaded by size, each cell opens its
   transactions) with a CSV download. Hover or tap any chart for its
   numbers.
+- **Budget**: built from your pay, your bills and how you actually spend
+  (a typical month over the last 6). Pick a plan (steady, push, hard) to
+  trim non-essentials harder than essentials, see the monthly saving and
+  how long to your savings goal (1.5 months' pay), and change any budget.
+  This month shows what's left in each, a daily allowance, and warns at
+  80%. "Where the non-essential money goes" lists the biggest places.
 - **Settings** (⚙ at the top): your account, importing statements, theme.
 - **Categories** are guessed from the merchant's name. Money moving
   between your own accounts (the same amount out of one and into another
@@ -54,7 +60,7 @@ serves it as it is.
   Bank and CSV transactions don't double up (same account, date and
   amount). A banner shows from 7 days before the bank's approval runs out.
 
-Coming next: budgets with an 80% alert.
+Coming next: the 80% budget alert as a phone and desktop notification.
 
 ## Setting it up (once)
 

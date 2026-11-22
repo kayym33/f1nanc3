@@ -37,7 +37,7 @@ const EVERYDAY = [
   ["MCDONALDS 1234 , EDINBURGH GB", 4, 11, 0.07, "student"],
   ["LOTHIAN BUSES , EDINBURGH GB", 2, 2.4, 0.28, "current"],
   ["TRAINLINE , LONDON GB", 12, 46, 0.03, "current"],
-  ["AMAZON* MK2ABC , AMAZON.CO.UK GB", 6, 55, 0.07, "current"],
+  ["AMAZON* AB12CD34E , AMAZON.CO.UK GB", 6, 55, 0.07, "current"],
   ["BOOTS 1092 , EDINBURGH GB", 3, 18, 0.04, "current"],
   ["PRIMARK , EDINBURGH GB", 8, 40, 0.025, "student"],
   ["SHELL 2201 , EDINBURGH GB", 35, 62, 0.04, "current"],
@@ -81,8 +81,8 @@ export function pretendTransactions(today = new Date()) {
       add(on(day), account, -value, type === "POS" ? `4321 ${pad(Math.min(day, days))}${card(first)} CD , ${line}` : line, type);
     }
     // Money to savings after payday, and some back to the student account.
-    add(on(27), "current", -300, "To A/C 77773333 , SAVINGS , Via Mobile Xfer", "DPC");
-    add(on(27), "savings", 300, "From A/C 66661111 , SAVINGS , Via Mobile Xfer", "DPC");
+    add(on(27), "current", -120, "To A/C 77773333 , SAVINGS , Via Mobile Xfer", "DPC");
+    add(on(27), "savings", 120, "From A/C 66661111 , SAVINGS , Via Mobile Xfer", "DPC");
     add(on(8), "current", -120, "To A/C 88882222 , STUDENT , Via Mobile Xfer", "DPC");
     add(on(8), "student", 120, "From A/C 66661111 , STUDENT , Via Mobile Xfer", "DPC");
     add(on(days), "savings", between(4, 9), `${pad(days)}${card(first).slice(0, 3)} GRS 77773333`, "INT");
@@ -104,7 +104,7 @@ export function pretendTransactions(today = new Date()) {
 
   // Oldest first for the running balances; then newest first, as RBS lists them.
   rows.sort((a, b) => a.date - b.date);
-  const balances = { [ACCOUNTS.current]: 820, [ACCOUNTS.student]: 160, [ACCOUNTS.savings]: 2400 };
+  const balances = { [ACCOUNTS.current]: 820, [ACCOUNTS.student]: 160, [ACCOUNTS.savings]: 300 };
   const seen = new Map();
   return rows.map((row, index) => {
     balances[row.account] = Math.round((balances[row.account] + row.amount) * 100) / 100;

@@ -17,6 +17,8 @@ const transactions = new Map();
 const accountNames = new Map();
 // Subscription choices: merchant -> {kind, url, hidden}.
 const subscriptionSettings = new Map();
+// The budget: {plan, amounts}, or null until one's picked.
+let budget = null;
 const rules = new Map();
 // As supabase/schema.sql's fin_mark_transfers: the same amount out of one
 // account and into another within a day is a transfer.
@@ -117,6 +119,11 @@ createServer(async (request, response) => {
   if (route === "PATCH /rest/v1/fin_transactions") {
     for (const row of transactions.values()) if (matches(row, url.searchParams)) Object.assign(row, data);
     return json(response, 204);
+  }
+  if (route === "GET /rest/v1/fin_budget") return json(response, 200, budget ? [budget] : []);
+  if (route === "POST /rest/v1/fin_budget") {
+    budget = { plan: data[0].plan, amounts: data[0].amounts };
+    return json(response, 201);
   }
   if (route === "GET /rest/v1/fin_accounts") {
     return json(response, 200, [...accountNames].map(([account, row]) => ({ account, ...row })));
