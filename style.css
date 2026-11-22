@@ -315,6 +315,22 @@ nav a.on { color: var(--background); background: var(--ink); font-weight: 700; p
 /* The open tab carries a bar of the accent, or the flag's stripes. */
 nav a.on::before { content: ""; position: absolute; left: 0; right: 0; top: 0; height: 4px; background: var(--accent-bar, var(--accent)); }
 
+/* The river (views/river.js): one canvas of glyphs, and a tooltip. */
+.river-line { color: var(--ink); margin: 14px 0 6px; }
+.river-wrap { position: relative; height: 440px; margin: 8px -4px 4px; touch-action: manipulation; }
+.river { display: block; }
+.river-tip {
+  position: absolute; z-index: 1; max-width: 260px; pointer-events: none;
+  background: var(--background); border: 1px solid var(--ink); padding: 8px 10px;
+  display: flex; flex-direction: column; gap: 2px; font-size: 13px;
+}
+.river-tip[hidden] { display: none; }
+.river-tip strong { color: var(--ink); }
+.river-card { border: 1px solid var(--ink); padding: 10px 12px; margin: 4px 0 8px; display: flex; flex-direction: column; gap: 2px; }
+.river-card[hidden] { display: none; }
+.river-card strong { color: var(--ink); }
+.river-card a { color: var(--accent-text); font-weight: 700; margin-top: 6px; text-decoration: none; padding: 4px 0; }
+
 /* The phone shows the first 5 of the latest; a wide screen all of them. */
 .latest li:nth-child(n+6) { display: none; }
 
@@ -388,6 +404,8 @@ nav a.on::before { content: ""; position: absolute; left: 0; right: 0; top: 0; h
   .split-detail .facts div { grid-template-columns: 6.5em 1fr; }
 
   .file { display: inline-block; width: auto; padding: 8px 20px; }
+  .river-wrap { height: min(560px, calc(100vh - 230px)); min-height: 380px; }
+  main[data-view="river"] .month-bar { max-width: 520px; }
 
   .tx-table { width: 100%; border-collapse: collapse; margin-top: 8px; }
   .tx-table th {

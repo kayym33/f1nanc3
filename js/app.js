@@ -9,6 +9,7 @@ import { esc, WIDE, wide } from "./ui.js";
 import * as importer from "./views/importer.js";
 import * as me from "./views/me.js";
 import * as overview from "./views/overview.js";
+import * as river from "./views/river.js";
 import * as transactions from "./views/transactions.js";
 
 const NOISE = " .:;'`~*+-,";
@@ -26,10 +27,12 @@ const ROUTES = [
   [/^\/m\/(?<month>\d{4}-\d{2})$/, "overview", overview.render, "/"],
   [/^\/tx$/, "transactions", transactions.render, "/tx"],
   [/^\/tx\/(?<id>[\w-]+)$/, "transaction", transactions.renderOne, "/tx"],
+  [/^\/river$/, "river", river.render, "/river"],
+  [/^\/river\/(?<month>\d{4}-\d{2})$/, "river", river.render, "/river"],
   [/^\/import$/, "import", importer.render, "/import"],
   [/^\/me$/, "me", me.render, "/me"],
 ];
-const VIEWS = [overview, transactions, importer, me];
+const VIEWS = [overview, transactions, river, importer, me];
 const handlers = (kind) => Object.assign({}, ...VIEWS.map((view) => view[kind] ?? {}));
 const ACTIONS = handlers("actions");
 const FORMS = handlers("forms");
@@ -113,6 +116,8 @@ function render() {
   document.documentElement.style.setProperty("--header-height", `${document.querySelector("header").offsetHeight}px`);
   main.innerHTML = result.html;
   window.scrollTo(0, scroll);
+  // Views that draw once they're on the page (the river's canvas).
+  result.mounted?.();
   if (focus) {
     const field = main.querySelector(focus.key);
     if (field) {

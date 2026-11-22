@@ -3,7 +3,9 @@
 import assert from "node:assert/strict";
 import { guessCategory, merchantOf } from "../js/categories.js";
 import { parseAmount, parseDate, parseRows, readStatement } from "../js/csv.js";
+import { allocateRows, bandTop, riverBands, riverLayout } from "../js/flow.js";
 import { addMonths, pounds, sum, windowMonths, windowStart } from "../js/money.js";
+import { monthSummary } from "../js/summary.js";
 
 let failures = 0;
 async function check(name, test) {
@@ -129,6 +131,53 @@ await check("money", () => {
   assert.equal(pounds(1234.5), "£1,234.50");
   assert.equal(pounds(-12.5, { sign: true }), "-£12.50");
   assert.equal(pounds(5, { sign: true }), "+£5.00");
+});
+
+await check("month summary leaves transfers out", () => {
+  const t = (booked_on, amount, category) => ({ booked_on, amount, category });
+  const summary = monthSummary([
+    t("2026-11-01", 1000, "income"), t("2026-11-02", -40, "groceries"), t("2026-11-03", 5, "groceries"),
+    t("2026-11-04", -300, "transfers"), t("2026-11-05", -20, "bills"), t("2026-10-30", -99, "bills"),
+  ], "2026-11");
+  assert.equal(summary.income, 1000);
+  assert.equal(summary.spending, 55);
+  assert.equal(summary.net, 945);
+  assert.deepEqual(summary.categories.map((row) => [row.category, row.total]), [["groceries", 35], ["bills", 20]]);
+});
+
+await check("rows are shared out in proportion, at least 1 each", () => {
+  assert.deepEqual(allocateRows([50, 30, 20], 10), [5, 3, 2]);
+  const tiny = allocateRows([1000, 1, 1], 10);
+  assert.equal(tiny.reduce((a, b) => a + b, 0), 10);
+  assert.ok(tiny.every((rows) => rows >= 1));
+  assert.deepEqual(allocateRows([5, 5], 1), [1, 1]);
+});
+
+await check("the river's two sides add up", () => {
+  const under = riverBands({ income: 1000, spending: 600, categories: [{ category: "bills", total: 400, count: 2 }, { category: "groceries", total: 200, count: 9 }] });
+  assert.deepEqual(under.sources.map((b) => b.key), ["in"]);
+  // The same order every month (groceries before bills), the biggest marked.
+  assert.deepEqual(under.sinks.map((b) => [b.key, b.amount, b.kind]), [["groceries", 200, "spend"], ["bills", 400, "top"], ["left", 400, "left"]]);
+  const over = riverBands({ income: 100, spending: 250, categories: [{ category: "bills", total: 250, count: 1 }] });
+  assert.deepEqual(over.sources.map((b) => [b.key, b.amount]), [["in", 100], ["balance", 150]]);
+  assert.deepEqual(over.sinks.map((b) => b.key), ["bills"]);
+  const layout = riverLayout(under, 30);
+  const total = (bands) => bands.reduce((a, b) => a + b.rows, 0);
+  assert.equal(total(layout.sources), layout.trunkRows);
+  assert.equal(total(layout.sinks), layout.trunkRows);
+  // Stacked without gaps in the trunk, fanned out with gaps at the ends.
+  assert.equal(layout.sinks[1].trunk, layout.sinks[0].trunk + layout.sinks[0].rows);
+  assert.ok(layout.sinks[1].slot > layout.sinks[0].slot + layout.sinks[0].rows);
+  assert.ok(layout.sinks[0].slot >= 1);
+  assert.ok(layout.trunkRows < 30 * 0.7);
+  // Too little room: still everything at least a row, no gaps.
+  const tight = riverLayout(under, 4);
+  assert.ok(tight.sinks.every((band) => band.rows >= 1));
+  assert.ok(layout.sinks.at(-1).slot + layout.sinks.at(-1).rows <= 30);
+  // A sink starts in the trunk and ends at its slot.
+  assert.equal(bandTop(layout.sinks[2], "sink", 0), layout.sinks[2].trunk);
+  assert.equal(bandTop(layout.sinks[2], "sink", 1), layout.sinks[2].slot);
+  assert.equal(riverLayout({ sources: [], sinks: [] }, 30), null);
 });
 
 if (failures) {

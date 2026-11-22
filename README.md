@@ -18,6 +18,11 @@ serves it as it is.
 - **List**: every transaction, searchable, filtered by month and category.
   Tap one to change its category; by default that also applies to every
   payment to the same merchant, now and in future.
+- **River**: the month drawn as an ASCII river. Money comes in on the
+  left, meets in the middle, and forks into a channel per category, each as
+  wide as what went there; the glyphs flow, and the biggest channel is
+  orange. Hover or tap a channel for its numbers, click through to its
+  transactions, and step between months to watch the channels change.
 - **Categories** are guessed from the merchant's name. Money moving
   between your own accounts (the same amount out of one and into another
   within a day) is marked as a transfer and left out of every total.

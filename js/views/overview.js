@@ -44,7 +44,7 @@ export function render(ctx, { month }) {
       </div>
       <div class="columns">
         <section>
-          ${heading("spending")}
+          <div class="section-head">${heading("spending")}${button("as a river ›", "go", { to: shown === monthOf(new Date()) ? "/river" : `/river/${shown}` }, { small: true })}</div>
           ${categories.length ? `<ul class="meters">${categories.map((row) => `
             <li ${action("go", { to: `/tx?month=${shown}&category=${row.category}` })}>
               <span class="name">${esc(row.category)}</span>
