@@ -1,0 +1,49 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>f1nanc3 privacy</title>
+  <meta name="robots" content="noindex">
+  <link rel="icon" href="icons/icon-192.png">
+  <link rel="stylesheet" href="style.css">
+  <style>main.legal { max-width: 720px; margin: 0 auto; } .legal h2 { margin-top: 28px; } .legal li { list-style: disc; margin: 4px 0 4px 1.2em; }</style>
+</head>
+<body>
+  <header><div class="bar"><div class="trail"><a href="./" class="home">f<span class="one">1</span>nanc3</a><span class="slash">/</span><span>privacy</span></div></div></header>
+  <main class="legal">
+    <h1>privacy</h1>
+    <p class="muted">last updated 22 november 2026</p>
+
+    <p>f1nanc3 is a personal finance app run by one person for their own use, and for a few people they invite. There's no sign-up: accounts are created by the owner. It shows where your money goes, using your own bank transactions.</p>
+
+    <h2>what it keeps</h2>
+    <ul>
+      <li>your sign-in: an email address and a password (kept hashed by Supabase, never readable)</li>
+      <li>your bank transactions: date, amount, the bank's description, the payment type, the balance after it, and the last 4 digits of the account number. Full account numbers and sort codes are never stored.</li>
+      <li>the categories you choose, and which merchants they apply to</li>
+      <li>if you connect a bank: which bank, which accounts (last 4 digits), when the bank's approval ends, and when transactions were last fetched</li>
+    </ul>
+
+    <h2>where it comes from</h2>
+    <ul>
+      <li>statements you upload (read on your device first; nothing is sent until you choose to import)</li>
+      <li>if you connect a bank, from your bank through <a href="https://enablebanking.com/">Enable Banking</a>, a regulated account information service provider. You approve this at your bank and can withdraw it at any time there or with "disconnect" in the app. f1nanc3 can only read transactions; it can't make payments or move money.</li>
+    </ul>
+
+    <h2>where it's kept and who can see it</h2>
+    <ul>
+      <li>in a database at <a href="https://supabase.com/">Supabase</a>, hosted in the EU (Frankfurt)</li>
+      <li>each account can only ever read its own data; the database enforces this</li>
+      <li>nothing is sold or shared, and there are no adverts, trackers or analytics</li>
+      <li>on your device, the app keeps only your sign-in and your day/night choice (in the browser's storage); your transactions are not stored on the device</li>
+    </ul>
+
+    <h2>how long</h2>
+    <p>Transactions are kept for the current month and the 12 before it; older ones are deleted automatically every night. Disconnecting a bank stops new fetches but keeps what's already there.</p>
+
+    <h2>your choices</h2>
+    <p>You can disconnect your bank at any time, and ask for your account and all of its data to be deleted. To ask, contact the owner through <a href="https://github.com/kayym33/f1nanc3">the project on GitHub</a>.</p>
+  </main>
+</body>
+</html>

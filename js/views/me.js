@@ -101,7 +101,8 @@ export function render(ctx) {
       <p>${plural(count, "transaction")}, kept for the current month and the 12 before it.</p>
       ${heading("theme")}
       <div class="chips">${THEMES.map((choice) => `<button type="button" class="chip${choice === theme() ? " on" : ""}" ${action("me-theme", { value: choice })}>${choice}</button>`).join("")}</div>
-      <p class="hint">auto follows this device's light and dark mode; the choice is kept on this device only</p>`,
+      <p class="hint">auto follows this device's light and dark mode; the choice is kept on this device only</p>
+      <p class="legal-links"><a href="privacy.html">privacy</a> · <a href="terms.html">terms</a></p>`,
   };
 }
 
