@@ -43,7 +43,7 @@ if (!process.env.STUB_EMPTY) {
   for (const { account, name, kind } of ACCOUNT_NAMES) accountNames.set(account, { name, kind });
   markTransfers();
   // The rent goes to a person, so it's set as a bill, as you would.
-  subscriptionSettings.set("to a/c …5555", { kind: "bill", url: null, hidden: false });
+  subscriptionSettings.set("to a/c …5555", { kind: "bill", url: null, hidden: false, cancelled_on: null });
 }
 // The pretend bank connection: [{id, bank, status, valid_until, accounts, ...}].
 const links = [];
@@ -136,7 +136,7 @@ createServer(async (request, response) => {
     return json(response, 200, [...subscriptionSettings].map(([merchant, row]) => ({ merchant, ...row })));
   }
   if (route === "POST /rest/v1/fin_subscriptions") {
-    for (const { merchant, kind, url: link, hidden } of data) subscriptionSettings.set(merchant, { kind, url: link, hidden });
+    for (const { merchant, updated_at: _, ...row } of data) subscriptionSettings.set(merchant, row);
     return json(response, 201);
   }
   if (route === "GET /rest/v1/fin_bank_links") {

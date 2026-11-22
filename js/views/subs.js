@@ -3,7 +3,7 @@
 // payment's page lets you add a link, move it between subscriptions and
 // bills, or say it isn't one.
 import { columnsChart } from "../chart.js";
-import { dayLabel, monthLabel, pounds } from "../money.js";
+import { dayLabel, isoDate, monthLabel, pounds } from "../money.js";
 import { findSubscriptions } from "../subscriptions.js";
 import { action, button, esc, heading, notReady } from "../ui.js";
 
@@ -31,7 +31,8 @@ function row(sub) {
       <span class="who">${esc(sub.name)}</span>
       <span class="amount">${esc(pounds(sub.monthly))}</span>
       <span class="side">${sub.url ? link(sub) : `<span class="add-link" aria-hidden="true">+ link</span>`}</span>
-      <span class="what">${sub.ended ? `last paid ${esc(short(sub.last))}` : `next ${esc(short(sub.next))} · ${esc(pounds(sub.yearly))} a year`}</span>
+      <span class="what">${sub.cancelled && sub.ended ? `cancelled ${esc(short(sub.cancelled))}` : sub.ended ? `last paid ${esc(short(sub.last))}` : `next ${esc(short(sub.next))} · ${esc(pounds(sub.yearly))} a year`}</span>
+      ${sub.chargedAfterCancel ? `<span class="what warn-note">charged ${esc(short(sub.last))}, after you cancelled on ${esc(short(sub.cancelled))}</span>` : ""}
       ${sub.change && !sub.ended ? `<span class="what">${changeNote(sub)}</span>` : ""}
     </li>`;
 }
@@ -68,7 +69,7 @@ export function render(ctx) {
       <p class="muted">${esc(pounds(Math.round(monthly * 12 * 100) / 100))} a year · ${subscriptions.length} ${subscriptions.length === 1 ? "subscription" : "subscriptions"} · ${bills.length} ${bills.length === 1 ? "bill" : "bills"}</p>
       ${section("subscriptions", subscriptions, sum(subscriptions))}
       ${section("bills", bills, sum(bills))}
-      ${ended.length ? `${heading("looks ended")}<ul class="subs ended">${ended.map(row).join("")}</ul>` : ""}
+      ${ended.length ? `${heading("ended")}<ul class="subs ended">${ended.map(row).join("")}</ul>` : ""}
       ${hidden.length ? `
         <details class="hidden-subs"><summary>not subscriptions (${hidden.length})</summary>
           <ul class="subs ended">${hidden.map(row).join("")}</ul>
@@ -94,7 +95,8 @@ export function renderOne(ctx, { key }) {
       <dl class="facts">
         <div><dt>a year</dt><dd>${esc(pounds(sub.yearly))}</dd></div>
         <div><dt>last paid</dt><dd>${esc(dayLabel(sub.last))}</dd></div>
-        <div><dt>${sub.ended ? "status" : "next"}</dt><dd>${sub.ended ? "looks ended: nothing for over 6 weeks" : `about ${esc(dayLabel(sub.next))}`}</dd></div>
+        <div><dt>${sub.ended ? "status" : "next"}</dt><dd>${sub.cancelled && sub.ended ? `cancelled ${esc(dayLabel(sub.cancelled))}` : sub.ended ? "looks ended: nothing for over 6 weeks" : `about ${esc(dayLabel(sub.next))}`}</dd></div>
+        ${sub.chargedAfterCancel ? `<div><dt>careful</dt><dd class="warn-note">charged on ${esc(dayLabel(sub.last))}, after you cancelled on ${esc(dayLabel(sub.cancelled))}: check it really ended</dd></div>` : ""}
         <div><dt>since</dt><dd>${esc(dayLabel(sub.payments[0].booked_on))} ${sub.payments[0].booked_on.slice(0, 4)} · ${sub.payments.length} payments</dd></div>
         ${sub.change ? `<div><dt>price</dt><dd>${changeNote(sub)}</dd></div>` : ""}
       </dl>
@@ -114,8 +116,11 @@ export function renderOne(ctx, { key }) {
       <p class="hint">${sub.linkKnown && !own.url ? "the link above is from f1nanc3's list; add your own to replace it" : "where you manage or cancel it"}</p>
       <p class="error" data-part="error" hidden></p>
 
-      <div class="row-buttons bottom">${own.hidden ? button("show it again", "subs-hide", { merchant, value: "" })
-        : button("not a subscription", "subs-hide", { merchant, value: "1" })}</div>`,
+      <div class="row-buttons bottom">
+        ${own.cancelled_on ? button("not cancelled after all", "subs-cancel", { merchant, value: "" }) : button("I've cancelled it", "subs-cancel", { merchant, value: "1" }, { solid: true })}
+        ${own.hidden ? button("show it again", "subs-hide", { merchant, value: "" }) : button("not a subscription", "subs-hide", { merchant, value: "1" })}
+      </div>
+      <p class="hint">cancelled ones move to "ended" and stop counting towards your bills; if one charges you again, it comes back with a warning</p>`,
   };
 }
 
@@ -146,6 +151,14 @@ export const actions = {
   async "subs-hide"(ctx, { merchant, value }) {
     try {
       await ctx.finance.saveSubscription(merchant, { hidden: Boolean(value) });
+      if (value) ctx.go("/subs");
+    } catch (problem) {
+      showError(problem);
+    }
+  },
+  async "subs-cancel"(ctx, { merchant, value }) {
+    try {
+      await ctx.finance.saveSubscription(merchant, { cancelled_on: value ? isoDate(new Date()) : null });
       if (value) ctx.go("/subs");
     } catch (problem) {
       showError(problem);

@@ -334,6 +334,15 @@ await check("finding subscriptions", () => {
   assert.equal(by["netflix.com"].ended, false);
   // Most expensive first.
   assert.equal(found[0].merchant, "to a/c …1234");
+  // Cancelled: ended straight away, unless it charges you again.
+  const cancelled = findSubscriptions(list, new Map([["netflix.com", { cancelled_on: "2026-11-10" }]]), new Date(2026, 10, 22));
+  const netflix = cancelled.find((s) => s.merchant === "netflix.com");
+  assert.equal(netflix.ended, true);
+  assert.equal(netflix.cancelled, "2026-11-10");
+  assert.equal(netflix.chargedAfterCancel, false);
+  const again = findSubscriptions(list, new Map([["netflix.com", { cancelled_on: "2026-11-01" }]]), new Date(2026, 10, 22));
+  assert.equal(again.find((s) => s.merchant === "netflix.com").chargedAfterCancel, true);
+  assert.equal(again.find((s) => s.merchant === "netflix.com").ended, false);
   assert.equal(nextMonth("2026-01-31"), "2026-02-28");
   assert.equal(nextMonth("2026-12-15"), "2027-01-15");
   assert.equal(priceChange([pay("x", "2026-01-01", -5), pay("x", "2026-02-01", -5)]), null);

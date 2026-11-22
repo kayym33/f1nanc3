@@ -245,3 +245,7 @@ create policy "Users manage their own budget"
 
 revoke all on public.fin_budget from anon;
 grant select, insert, update, delete on public.fin_budget to authenticated;
+
+-- When you cancelled a subscription or bill (subs page): it counts as
+-- ended from then, unless it charges you again afterwards.
+alter table public.fin_subscriptions add column if not exists cancelled_on date;
