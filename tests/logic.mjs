@@ -11,7 +11,7 @@ import { addMonths, pounds, sum, windowMonths, windowStart } from "../js/money.j
 import { monthSummary } from "../js/summary.js";
 import { latestBalances } from "../js/balances.js";
 import { biggestNonEssentials, budgetsFor, dailyAllowance, fullMonths, monthProgress, outlook, typicalSpending } from "../js/budget.js";
-import { expectedIncome, regularIncome } from "../js/income.js";
+import { expectedIncome, monthlyIncome, regularIncome } from "../js/income.js";
 import { categoryGrid, gridCsv, inOut, months as trendMonths, niceCeiling, pace } from "../js/trends.js";
 import { longestWithout, regularPayments, yearStats } from "../js/wrapped.js";
 
@@ -417,6 +417,24 @@ await check("pay that's still to come", () => {
   assert.deepEqual(expectedIncome([...list, t("2026-11-27", 1900, "employer ltd")], new Date(2026, 10, 28)), []);
   // Late: due the 28th but it's the 30th and nothing yet: due "today".
   assert.deepEqual(expectedIncome(list, new Date(2026, 10, 30)), [{ name: "Employer Ltd", amount: 1850, day: 30 }]);
+});
+
+await check("all the money you can count on", () => {
+  const t = (booked_on, amount, merchant) => ({ booked_on, amount, merchant, category: "income" });
+  const list = [];
+  for (let m = 1; m <= 12; m++) {
+    const month = `2026-${String(m).padStart(2, "0")}`;
+    list.push(t(`${month}-26`, 2400 + (m % 3) * 50, "employer"));
+    // The side income misses two months a year.
+    if (m !== 6 && m !== 12) list.push(t(`${month}-07`, 700, "saas co"));
+  }
+  const income = monthlyIncome(list, new Date(2027, 0, 15));
+  assert.equal(income.main, 2450);
+  const saas = income.sources.find((s) => s.merchant === "saas co");
+  assert.equal(saas.months, 10);
+  assert.equal(saas.outOf, 12);
+  assert.equal(saas.monthly, 583.33);
+  assert.equal(income.total, 3033.33);
 });
 
 await check("latest balances", () => {
