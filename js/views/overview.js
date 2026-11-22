@@ -42,6 +42,7 @@ export function render(ctx, { month }) {
           <div><dt>left</dt><dd>${pounds(net, { sign: true })}</dd></div>
         </dl>
       </div>
+      <button type="button" class="wrapped-link" ${action("go", { to: "/wrapped" })}><span>✶</span> your year, wrapped <span class="go">›</span></button>
       <div class="columns">
         <section>
           <div class="section-head">${heading("spending")}${button("as a river ›", "go", { to: shown === monthOf(new Date()) ? "/river" : `/river/${shown}` }, { small: true })}</div>

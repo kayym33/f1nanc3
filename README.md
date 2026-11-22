@@ -23,6 +23,11 @@ serves it as it is.
   wide as what went there; the glyphs flow, and the biggest channel is
   orange. Hover or tap a channel for its numbers, click through to its
   transactions, and step between months to watch the channels change.
+- **Your year, wrapped**: a deck of full-screen cards from the last 365
+  days (from the overview): where you went most, where it went, your
+  biggest single spend, month by month, the priciest day of the week, your
+  longest run without eating out, regular payments and what was left. Tap
+  or use the arrow keys; they also move on by themselves.
 - **Categories** are guessed from the merchant's name. Money moving
   between your own accounts (the same amount out of one and into another
   within a day) is marked as a transfer and left out of every total.

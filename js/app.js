@@ -11,6 +11,7 @@ import * as me from "./views/me.js";
 import * as overview from "./views/overview.js";
 import * as river from "./views/river.js";
 import * as transactions from "./views/transactions.js";
+import * as wrapped from "./views/wrapped.js";
 
 const NOISE = " .:;'`~*+-,";
 const SPECK_SHARE = 0.4;
@@ -29,10 +30,11 @@ const ROUTES = [
   [/^\/tx\/(?<id>[\w-]+)$/, "transaction", transactions.renderOne, "/tx"],
   [/^\/river$/, "river", river.render, "/river"],
   [/^\/river\/(?<month>\d{4}-\d{2})$/, "river", river.render, "/river"],
+  [/^\/wrapped$/, "wrapped", wrapped.render, "/"],
   [/^\/import$/, "import", importer.render, "/import"],
   [/^\/me$/, "me", me.render, "/me"],
 ];
-const VIEWS = [overview, transactions, river, importer, me];
+const VIEWS = [overview, transactions, river, wrapped, importer, me];
 const handlers = (kind) => Object.assign({}, ...VIEWS.map((view) => view[kind] ?? {}));
 const ACTIONS = handlers("actions");
 const FORMS = handlers("forms");

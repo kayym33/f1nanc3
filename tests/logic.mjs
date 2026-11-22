@@ -6,6 +6,7 @@ import { parseAmount, parseDate, parseRows, readStatement } from "../js/csv.js";
 import { allocateRows, bandTop, riverBands, riverLayout } from "../js/flow.js";
 import { addMonths, pounds, sum, windowMonths, windowStart } from "../js/money.js";
 import { monthSummary } from "../js/summary.js";
+import { longestWithout, regularPayments, yearStats } from "../js/wrapped.js";
 
 let failures = 0;
 async function check(name, test) {
@@ -178,6 +179,56 @@ await check("the river's two sides add up", () => {
   assert.equal(bandTop(layout.sinks[2], "sink", 0), layout.sinks[2].trunk);
   assert.equal(bandTop(layout.sinks[2], "sink", 1), layout.sinks[2].slot);
   assert.equal(riverLayout({ sources: [], sinks: [] }, 30), null);
+});
+
+await check("the year in review", () => {
+  const t = (booked_on, amount, category, merchant) => ({ booked_on, amount, category, merchant });
+  const list = [
+    t("2026-08-01", 2000, "income", "employer"), t("2026-09-01", 2000, "income", "employer"), t("2026-10-01", 2000, "income", "employer"),
+    t("2026-08-03", -10.99, "entertainment", "netflix"), t("2026-09-03", -10.99, "entertainment", "netflix"), t("2026-10-03", -10.99, "entertainment", "netflix"),
+    t("2026-08-04", -40, "groceries", "tesco"), t("2026-08-11", -20, "groceries", "tesco"), t("2026-09-05", -30, "groceries", "tesco"),
+    t("2026-08-06", -500, "shopping", "argos"),
+    t("2026-08-08", -25, "eating out", "deliveroo"), t("2026-10-20", -35, "eating out", "deliveroo"),
+    t("2026-09-10", -300, "transfers", "to savings"),
+  ];
+  const stats = yearStats(list, new Date(2026, 9, 31));
+  assert.equal(stats.from, "2026-08-01");
+  assert.equal(stats.income, 6000);
+  assert.equal(stats.out, 682.97);
+  assert.equal(stats.left, 5317.03);
+  assert.equal(stats.topMerchant.merchant, "tesco");
+  assert.equal(stats.topMerchant.visits, 3);
+  assert.equal(stats.biggest.merchant, "argos");
+  assert.equal(stats.byCategory[0].category, "shopping");
+  assert.equal(stats.peak.month, "2026-08");
+  // The first and current months are partial, so only September can be the quietest.
+  assert.equal(stats.quietest.month, "2026-09");
+  assert.equal(stats.streak.days, 72);
+  assert.equal(stats.streak.from, "2026-08-09");
+  assert.equal(stats.streak.to, "2026-10-19");
+  // Eating out (£60) in average Tesco shops (£30).
+  assert.equal(stats.eatingOutInShops, 2);
+  assert.deepEqual(stats.regular.map((r) => r.merchant), ["netflix"]);
+  assert.equal(stats.weekdays.length, 7);
+  // Under four weeks of data: nothing to say.
+  assert.equal(yearStats([t("2026-10-20", -5, "other", "x")], new Date(2026, 9, 31)), null);
+});
+
+await check("longest gap and regular payments", () => {
+  const t = (booked_on, category = "eating out") => ({ booked_on, category });
+  assert.deepEqual(longestWithout([t("2026-01-05"), t("2026-01-07")], "eating out", "2026-01-01", "2026-01-10"),
+    { days: 4, from: "2026-01-01", to: "2026-01-04" });
+  assert.equal(longestWithout([t("2026-01-05", "bills")], "eating out", "2026-01-01", "2026-01-10"), null);
+  const pay = (booked_on, amount, merchant) => ({ booked_on, amount, merchant });
+  const regular = regularPayments([
+    pay("2026-01-01", -85, "octopus"), pay("2026-02-01", -90, "octopus"), pay("2026-03-01", -86, "octopus"),
+    // A shop visited all the time isn't a regular payment.
+    ...Array.from({ length: 12 }, (_, i) => pay(`2026-0${1 + (i % 3)}-1${i % 9}`, -30, "tesco")),
+    // Nor is one whose amount jumps about.
+    pay("2026-01-02", -5, "amazon"), pay("2026-02-02", -60, "amazon"), pay("2026-03-02", -12, "amazon"),
+  ]);
+  assert.deepEqual(regular.map((r) => r.merchant), ["octopus"]);
+  assert.equal(regular[0].typical, 86);
 });
 
 if (failures) {
