@@ -10,6 +10,7 @@
 // dragging across one highlights that stretch with its totals.
 import { chartStyle } from "../chartstyle.js";
 import { monthLabel, monthOf, pounds } from "../money.js";
+import { billDays, findSubscriptions, projection } from "../subscriptions.js";
 import { categoryGrid, gridCsv, inOut, months, niceCeiling, pace } from "../trends.js";
 import { action, button, esc, heading, notReady } from "../ui.js";
 
@@ -19,6 +20,23 @@ const abbreviation = (month) => monthLabel(month).slice(0, 3);
 const total = (list) => Math.round(list.reduce((a, b) => a + b, 0) * 100) / 100;
 
 let active = null;
+
+// Bill days on the pace chart: on unless switched off, kept per device.
+const BILL_DAYS_KEY = "f1nanc3.billDays";
+function showBillDays() {
+  try {
+    return localStorage.getItem(BILL_DAYS_KEY) !== "off";
+  } catch {
+    return true;
+  }
+}
+
+// This month's subscriptions and bills on their days (subs page).
+function marksFor(ctx) {
+  return billDays(findSubscriptions(ctx.finance.transactions, ctx.finance.subscriptionSettings));
+}
+
+const ordinal = (day) => `${day}${[11, 12, 13].includes(day) ? "th" : ["th", "st", "nd", "rd"][day % 10] ?? "th"}`;
 
 // "▲ £496 (+115%)": `good` says whether going up is good news.
 function delta(now, before, { good = false, label = "" } = {}) {
@@ -41,6 +59,9 @@ export function render(ctx) {
   const io = inOut(ctx.finance.transactions, list);
   // The last whole month against the one before (this month isn't over).
   const [before, last] = io.slice(-3, -1);
+  const bills = showBillDays();
+  const marks = marksFor(ctx);
+  const coming = marks.filter((mark) => !mark.gone);
   const drag = (what) => `<p class="readout" data-readout><span class="hint">drag across the ${what} to add them up</span></p>`;
   return {
     crumbs: ["charts"],
@@ -55,9 +76,17 @@ export function render(ctx) {
       <section class="chart-block">
         ${heading("this month's pace")}
         <p class="headline" data-part="pace-line"></p>
-        <p class="legend"><span class="key out"></span>this month <span class="key last"></span>last month</p>
+        <p class="legend"><span class="pair"><span class="key out"></span>this month</span> <span class="pair"><span class="key last"></span>last month</span>
+          ${bills ? `<span class="pair"><span class="key-bill"></span>a bill's day</span> <span class="pair"><span class="key-projection"></span>with the bills to come</span>` : ""}
+          <button type="button" class="chip toggle${bills ? " on" : ""}" ${action("charts-bills")} aria-pressed="${bills}">bill days ${bills ? "on" : "off"}</button></p>
         <div class="chart" data-chart="pace" aria-label="spending so far this month against last month"></div>
         ${drag("days")}
+        ${bills && coming.length ? `
+          <div class="coming"><h3>still to come this month</h3><ul>
+            ${coming.map((mark) => `<li><span class="when">the ${ordinal(mark.day)}</span><span>${esc(mark.name)}</span><span class="amount">${esc(pounds(mark.amount))}</span></li>`).join("")}
+            <li class="sum"><span></span><span>total</span><span class="amount">${esc(pounds(Math.round(coming.reduce((t, m) => t + m.amount, 0) * 100) / 100))}</span></li>
+          </ul></div>` : ""}
+        ${bills && !marks.length ? `<p class="hint">no bills to mark yet: they come from the subs tab once they've gone out three months running</p>` : ""}
       </section>
       <section class="chart-block">
         ${heading("categories over time")}
@@ -103,6 +132,7 @@ class Charts {
     this.grid = grid;
     this.io = io;
     this.pace = pace(ctx.finance.transactions);
+    this.marks = showBillDays() ? marksFor(ctx) : [];
     this.tip = document.querySelector(".chart-tip");
     this.observer = new ResizeObserver(() => this.draw());
     this.observer.observe(document.querySelector("main"));
@@ -142,7 +172,9 @@ class Charts {
     const then = lastMonth[Math.min(day, lastMonth.length) - 1] ?? 0;
     const gap = Math.round(now - then);
     const tone = gap === 0 ? "" : gap < 0 ? "good" : "bad";
-    part.innerHTML = `<span class="big">${esc(short(now))}</span> so far ${then ? `<span class="delta ${tone}">${gap < 0 ? "▼" : gap > 0 ? "▲" : "="} ${esc(short(Math.abs(gap)))} ${gap < 0 ? "less than" : gap > 0 ? "more than" : "the same as"} this time last month</span>` : ""}`;
+    const coming = this.marks.filter((mark) => !mark.gone).reduce((t, m) => t + m.amount, 0);
+    const ahead = coming ? ` <span class="ahead">· about <b>${esc(short(now + coming))}</b> by the month's end with the bills still to come</span>` : "";
+    part.innerHTML = `<span class="big">${esc(short(now))}</span> so far ${then ? `<span class="delta ${tone}">${gap < 0 ? "▼" : gap > 0 ? "▲" : "="} ${esc(short(Math.abs(gap)))} ${gap < 0 ? "less than" : gap > 0 ? "more than" : "the same as"} this time last month</span>` : ""}${ahead}`;
   }
 
   // What a chart shows: its points, series, labels and what a highlighted
@@ -170,15 +202,18 @@ class Charts {
       };
     }
     if (kind === "pace") {
-      const { thisMonth, lastMonth } = this.pace;
+      const { thisMonth, lastMonth, day: today } = this.pace;
       const days = Math.max(lastMonth.length, thisMonth.length, 28);
+      const marks = this.marks;
       return {
-        kind, height: 190, months: false, labels: Array.from({ length: days }, (_, i) => String(i + 1)), count: days,
+        kind, height: marks.length ? 240 : 190, months: false, marks, today: marks.length ? today : null,
+        projection: marks.some((m) => !m.gone) ? projection(thisMonth.at(-1) ?? 0, marks, today, days) : null, labels: Array.from({ length: days }, (_, i) => String(i + 1)), count: days,
         series: [
           { name: "last month", cls: "last", values: lastMonth },
           { name: "this month", cls: "out", values: thisMonth },
         ],
-        tip: (i) => `<strong>day ${i + 1}</strong>${thisMonth[i] !== undefined ? `<span>this month ${esc(pounds(thisMonth[i]))}</span>` : ""}${lastMonth[i] !== undefined ? `<span>last month ${esc(pounds(lastMonth[i]))}</span>` : ""}`,
+        tip: (i) => `<strong>day ${i + 1}</strong>${thisMonth[i] !== undefined ? `<span>this month ${esc(pounds(thisMonth[i]))}</span>` : ""}${lastMonth[i] !== undefined ? `<span>last month ${esc(pounds(lastMonth[i]))}</span>` : ""}${
+          marks.filter((m) => m.day === i + 1).map((m) => `<span class="tip-bill">${esc(m.name)} ${esc(pounds(m.amount))} · ${m.gone ? "paid" : "still to come"}</span>`).join("")}`,
         range: (a, b) => {
           const spent = (values) => {
             if (a >= values.length) return null;
@@ -209,11 +244,13 @@ class Charts {
   layout(spec, width, style) {
     const terminal = style !== "soft";
     const bars = spec.months && !spec.spark && !terminal;
-    const pad = spec.spark ? { l: 3, r: 3, t: 4, b: 4 } : terminal ? { l: 4, r: 56, t: 10, b: 22 } : { l: 44, r: 8, t: 10, b: 22 };
+    const top = spec.marks?.length ? 48 : 10;
+    const pad = spec.spark ? { l: 3, r: 3, t: 4, b: 4 } : terminal ? { l: 4, r: 56, t: top, b: 22 } : { l: 44, r: 8, t: top, b: 22 };
     const n = spec.count ?? spec.labels.length;
     const plotW = Math.max(10, width - pad.l - pad.r);
     const plotH = spec.height - pad.t - pad.b;
-    const max = spec.spark ? Math.max(...spec.series[0].values, 1) : niceCeiling(Math.max(...spec.series.flatMap((s) => s.values), 1));
+    const highest = Math.max(...spec.series.flatMap((s) => s.values), ...(spec.projection ?? []).map(([, v]) => v), 1);
+    const max = spec.spark ? Math.max(...spec.series[0].values, 1) : niceCeiling(highest);
     const x = (i) => pad.l + (bars ? (i + 0.5) / n : i / Math.max(1, n - 1)) * plotW;
     const y = (value) => pad.t + plotH - (value / max) * plotH;
     // A highlighted stretch runs from half a step before its first point
@@ -242,7 +279,7 @@ class Charts {
     } else {
       // Gridlines and the value axis (on the right for terminal, where a
       // price tag hides any label it would cover).
-      const tagged = L.terminal ? spec.series.filter((s) => s.values.length).map((s) => y(s.values.at(-1))) : [];
+      const tagged = L.terminal ? [...spec.series.filter((s) => s.values.length).map((s) => y(s.values.at(-1))), ...(spec.projection ? [y(spec.projection.at(-1)[1])] : [])] : [];
       for (const value of [0, max / 2, max]) {
         out += `<line class="grid${L.terminal && value ? " dotted" : ""}" x1="${pad.l}" x2="${pad.l + plotW}" y1="${y(value)}" y2="${y(value)}"/>`;
         if (tagged.some((at) => Math.abs(at - y(value)) < 14)) continue;
@@ -256,6 +293,34 @@ class Charts {
         const show = spec.months ? (L.n - 1 - i) % every === 0 : i % every === 0;
         if (show) out += `<text class="tick" x="${x(i)}" y="${height - 6}" text-anchor="middle">${esc(label)}</text>`;
       });
+      // Bill days: faint once paid, stronger (and labelled) still to come.
+      if (spec.marks?.length) {
+        // Labels go in up to three rows above the chart, each in the first
+        // row where it doesn't overlap another (measured at 6.7px a
+        // character); ones that fit nowhere are left to the tooltip.
+        const rows = [[], [], []];
+        const labels = spec.marks.filter((mark) => !mark.gone || mark.amount >= 50)
+          .sort((a, b) => Number(a.gone) - Number(b.gone) || b.amount - a.amount);
+        for (const mark of spec.marks) {
+          const mx = x(mark.day - 1);
+          out += `<line class="bill-day${mark.gone ? " gone" : ""}" x1="${mx}" x2="${mx}" y1="${pad.t}" y2="${pad.t + plotH}"/>`;
+        }
+        for (const mark of labels) {
+          const mx = x(mark.day - 1);
+          const text = `${mark.name} ${short(mark.amount)}`;
+          const span = text.length * 6.7;
+          const flip = mx + 4 + span > width;
+          const from = flip ? mx - 4 - span : mx + 4;
+          const row = rows.findIndex((taken) => taken.every(([a, b]) => from + span + 6 < a || from > b + 6));
+          if (row < 0 || from < 0) continue;
+          rows[row].push([from, from + span]);
+          out += `<text class="bill-label${mark.gone ? " gone" : ""}" x="${flip ? mx - 4 : mx + 4}" y="${pad.t - 34 + row * 13}" text-anchor="${flip ? "end" : "start"}">${esc(text)}</text>`;
+        }
+        if (spec.today) {
+          const tx = x(spec.today - 1);
+          out += `<line class="today" x1="${tx}" x2="${tx}" y1="${pad.t - 4}" y2="${pad.t + plotH}"/>`;
+        }
+      }
       if (L.bars) {
         const slot = plotW / L.n;
         const bar = Math.max(2, Math.min(16, slot / 2 - 3));
@@ -279,10 +344,16 @@ class Charts {
           if (L.terminal) out += `<line class="last-level ${series.cls}" x1="${pad.l}" x2="${pad.l + plotW}" y1="${y(values.at(-1))}" y2="${y(values.at(-1))}"/>`;
           out += `<circle class="dot ${series.cls}" cx="${x(values.length - 1)}" cy="${y(values.at(-1))}" r="${style === "soft" ? 5 : 3.5}"/>`;
         }
+        // Where the month ends up with the bills still to come.
+        if (spec.projection) {
+          out += `<path class="projection" d="${spec.projection.map(([d, v], i) => `${i ? "L" : "M"}${x(d - 1).toFixed(1)},${y(v).toFixed(1)}`).join("")}"/>`;
+        }
         // Price tags: each line's latest value on the right edge, nudged
         // apart when they'd overlap.
         if (L.terminal) {
-          const tags = spec.series.filter((s) => s.values.length).map((s) => ({ cls: s.cls, value: s.values.at(-1), at: y(s.values.at(-1)) }))
+          const ends = spec.series.filter((s) => s.values.length).map((s) => ({ cls: s.cls, value: s.values.at(-1), at: y(s.values.at(-1)) }));
+          if (spec.projection) ends.push({ cls: "out", value: spec.projection.at(-1)[1], at: y(spec.projection.at(-1)[1]) });
+          const tags = ends
             .sort((a, b) => a.at - b.at);
           for (let i = 1; i < tags.length; i++) if (tags[i].at - tags[i - 1].at < 19) tags[i].at = tags[i - 1].at + 19;
           for (const tag of tags) {
@@ -390,6 +461,14 @@ document.addEventListener("keydown", (event) => {
 });
 
 export const actions = {
+  "charts-bills"(ctx) {
+    try {
+      localStorage.setItem(BILL_DAYS_KEY, showBillDays() ? "off" : "on");
+    } catch {
+      // Storage is off: nothing to remember it in.
+    }
+    ctx.render();
+  },
   "charts-csv"(ctx) {
     const list = months();
     const csv = gridCsv(categoryGrid(ctx.finance.transactions, list), list);

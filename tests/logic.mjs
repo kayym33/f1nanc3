@@ -4,7 +4,7 @@ import assert from "node:assert/strict";
 import { accountLast4, bankRow, describe, notAlreadyThere, signedAmount } from "../js/bank.js";
 import { guessCategory, merchantOf } from "../js/categories.js";
 import { knownService } from "../js/services.js";
-import { findSubscriptions, nextMonth, priceChange } from "../js/subscriptions.js";
+import { billDays, findSubscriptions, nextMonth, priceChange, projection } from "../js/subscriptions.js";
 import { parseAmount, parseDate, parseRows, readStatement } from "../js/csv.js";
 import { allocateRows, bandTop, riverBands, riverLayout } from "../js/flow.js";
 import { addMonths, pounds, sum, windowMonths, windowStart } from "../js/money.js";
@@ -369,6 +369,22 @@ await check("the charts' numbers", () => {
   assert.equal(niceCeiling(180), 200);
   assert.equal(niceCeiling(1234), 2000);
   assert.equal(niceCeiling(4.2), 5);
+});
+
+await check("bill days and the month's projection", () => {
+  const sub = (name, last, next, monthly, extra = {}) => ({ name, kind: "bill", last, next, monthly, ended: false, hidden: false, ...extra });
+  const marks = billDays([
+    sub("energy", "2026-11-05", "2026-12-05", 88),
+    sub("rent", "2026-10-28", "2026-11-28", 650),
+    sub("sky", "2026-10-30", "2026-11-30", 96.95),
+    sub("gym", "2026-08-02", "2026-09-02", 25, { ended: true }),
+    sub("hidden", "2026-10-25", "2026-11-25", 9, { hidden: true }),
+    sub("late", "2026-10-20", "2026-11-20", 10),
+  ], new Date(2026, 10, 22));
+  assert.deepEqual(marks.map((m) => [m.name, m.day, m.gone]), [["energy", 5, true], ["late", 20, false], ["rent", 28, false], ["sky", 30, false]]);
+  const steps = projection(700, marks, 22, 30);
+  // The late one comes out "today"; then rent on the 28th, Sky on the 30th.
+  assert.deepEqual(steps, [[22, 700], [22, 700], [22, 710], [28, 710], [28, 1360], [30, 1360], [30, 1456.95], [30, 1456.95]]);
 });
 
 if (failures) {

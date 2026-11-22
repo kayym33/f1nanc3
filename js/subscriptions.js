@@ -100,3 +100,36 @@ export function findSubscriptions(transactions, settings = new Map(), today = ne
   }
   return found.sort((a, b) => b.monthly - a.monthly);
 }
+
+// When each live subscription and bill comes out this month: [{name,
+// kind, amount, day, gone}], by day. `gone` is true once it's been paid
+// this month; otherwise `day` is when it's expected (from its usual day).
+export function billDays(subscriptions, today = new Date()) {
+  const month = isoDate(today).slice(0, 7);
+  const marks = [];
+  for (const sub of subscriptions) {
+    if (sub.ended || sub.hidden) continue;
+    if (sub.last.startsWith(month)) {
+      marks.push({ name: sub.name, kind: sub.kind, amount: sub.monthly, day: Number(sub.last.slice(8, 10)), gone: true });
+    } else if (sub.next.startsWith(month)) {
+      marks.push({ name: sub.name, kind: sub.kind, amount: sub.monthly, day: Number(sub.next.slice(8, 10)), gone: false });
+    }
+  }
+  return marks.sort((a, b) => a.day - b.day || b.amount - a.amount);
+}
+
+// Where this month's spending ends up if only the bills still to come go
+// out: [[day, running total], ...] from today to the month's last day,
+// stepping up on each bill's day (a late one counts from today).
+export function projection(spentSoFar, marks, today, lastDay) {
+  let total = spentSoFar;
+  const steps = [[today, total]];
+  for (const mark of marks.filter((m) => !m.gone)) {
+    const day = Math.max(today, mark.day);
+    steps.push([day, total]);
+    total = Math.round((total + mark.amount) * 100) / 100;
+    steps.push([day, total]);
+  }
+  steps.push([lastDay, total]);
+  return steps;
+}
