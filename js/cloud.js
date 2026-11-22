@@ -124,7 +124,9 @@ export class Cloud {
     saveSession(null);
     if (!session) return;
     try {
-      await this.request("POST", "/auth/v1/logout", undefined, {
+      // scope=local: just this device. Supabase's default signs out every
+      // device, t1ld3 included.
+      await this.request("POST", "/auth/v1/logout?scope=local", undefined, {
         headers: { Authorization: `Bearer ${session.access_token}` },
         authorized: false,
       });

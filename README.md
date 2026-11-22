@@ -63,7 +63,14 @@ serves it as it is.
 - **Notifications** (settings → notifications, per device; on an iPhone,
   the home-screen app): a budget category at 80% and over, and a nudge
   before payday to move what's spare to savings. Checked at 9am every day
-  and straight after an import; each alert goes once a month.
+  and straight after an import; each alert goes once a month. They never
+  include amounts.
+
+- **PIN lock** (settings → PIN lock, per device): asks for a 4–6 digit PIN
+  when f1nanc3 opens and after 5 minutes away, and loads nothing until
+  it's right. 10 wrong tries signs you out.
+- **Privacy mode**: the eye at the top blurs every amount, charts and the
+  river included, until you tap it again.
 
 ## Setting it up (once)
 

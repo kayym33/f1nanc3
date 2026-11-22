@@ -6,6 +6,7 @@ import { dayLabel } from "../money.js";
 import { CHART_STYLES, chartStyle, setChartStyle } from "../chartstyle.js";
 import { setTheme, theme, THEMES } from "../theme.js";
 import { latestBalances } from "../balances.js";
+import { checkPin, clearPin, hasPin, setPin, validPin } from "../pin.js";
 import { disablePush, enablePush, pushStatus } from "../push.js";
 import { action, button, esc, heading } from "../ui.js";
 
@@ -92,6 +93,29 @@ export async function finishConnecting(ctx, params) {
   }
   bankState.working = null;
   await ctx.finance.load();
+}
+
+// The PIN lock on this device (js/pin.js).
+const pinState = { message: null, error: null };
+
+function pinHtml() {
+  const note = pinState.message ? `<p class="flash">${esc(pinState.message)}</p>` : "";
+  const error = pinState.error ? `<p class="error">${esc(pinState.error)}</p>` : "";
+  const field = (name, label) => `<label>${label}<input name="${name}" type="password" inputmode="numeric" pattern="[0-9]*" maxlength="6" autocomplete="off" required></label>`;
+  if (!hasPin()) {
+    return `${note}${error}
+      <p>ask for a PIN every time f1nanc3 opens on this device, and after 5 minutes away.</p>
+      <form class="editor pin-form" data-form="pin-set">
+        <div class="pair">${field("pin", "new PIN (4–6 digits)")}${field("again", "again")}</div>
+        <button type="submit" class="button solid">set PIN</button>
+      </form>`;
+  }
+  return `${note}${error}
+    <p>on: f1nanc3 asks for your PIN when it opens on this device, and after 5 minutes away. 10 wrong tries signs you out.</p>
+    <form class="editor pin-form" data-form="pin-change">
+      <div class="pair">${field("current", "current PIN")}${field("pin", "new PIN")}</div>
+      <div class="row-buttons"><button type="submit" class="button">change PIN</button><button type="submit" class="button" name="remove" value="1">remove PIN</button></div>
+    </form>`;
 }
 
 // Notifications on this device: filled in once the page is up, since
@@ -205,6 +229,8 @@ export function render(ctx, params = {}) {
       ${accountsHtml(ctx)}
       ${moveHtml(ctx, params.move ?? "")}
       ${BANK_CONNECTION ? `${heading("bank")}${bankHtml(ctx)}` : ""}
+      ${heading("PIN lock")}
+      ${pinHtml()}
       ${heading("notifications")}
       <div data-part="notifications">${notificationsHtml()}</div>
       ${heading("theme")}
@@ -291,6 +317,7 @@ export const actions = {
   async "me-sign-out"(ctx) {
     if (!confirm("sign out of f1nanc3 here?")) return;
     await ctx.cloud.signOut();
+    clearPin();
     ctx.finance.clear();
     ctx.go("/");
   },
@@ -312,6 +339,34 @@ export function renderSignIn() {
 }
 
 export const forms = {
+  async "pin-set"(ctx, form) {
+    pinState.message = null;
+    pinState.error = null;
+    const pin = form.elements.pin.value;
+    if (!validPin(pin)) pinState.error = "a PIN is 4 to 6 digits";
+    else if (pin !== form.elements.again.value) pinState.error = "those two don't match";
+    else {
+      await setPin(pin);
+      pinState.message = "PIN set: you'll need it next time f1nanc3 opens";
+    }
+    ctx.render();
+  },
+  async "pin-change"(ctx, form, submitter) {
+    pinState.message = null;
+    pinState.error = null;
+    const result = await checkPin(form.elements.current.value);
+    if (result === "signout") return ctx.signOutForPin();
+    if (result !== "ok") pinState.error = result === "wait" ? "too many tries: wait a moment" : "that's not your current PIN";
+    else if (submitter?.name === "remove") {
+      clearPin();
+      pinState.message = "PIN removed";
+    } else if (!validPin(form.elements.pin.value)) pinState.error = "a new PIN is 4 to 6 digits";
+    else {
+      await setPin(form.elements.pin.value);
+      pinState.message = "PIN changed";
+    }
+    ctx.render();
+  },
   async "move-money"(ctx, form) {
     moveState.message = null;
     moveState.error = null;

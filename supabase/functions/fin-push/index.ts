@@ -24,7 +24,7 @@ Deno.serve(async (request) => {
   const { data: devices } = await client.from("fin_push_subscriptions").select("endpoint, p256dh, auth");
   const sent = await sendToDevices(client, devices ?? [], {
     title: "f1nanc3",
-    body: "notifications work :D you'll hear about budgets at 80% and payday here",
+    body: "notifications work :D you'll hear about budgets and payday here (never with amounts)",
     tag: "test",
     url: "./#/settings",
   });

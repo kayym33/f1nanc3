@@ -7,7 +7,7 @@
 import { latestBalances } from "./balances.js";
 import { budgetsFor, dailyAllowance, fullMonths, GOAL_MONTHS, monthProgress, outlook, PLANS, typicalSpending } from "./budget.js";
 import { expectedIncome, monthlyIncome } from "./income.js";
-import { monthLabel, monthOf, pounds, sum } from "./money.js";
+import { monthOf, sum } from "./money.js";
 import { paydayNudge } from "./payday.js";
 import { billDays, findSubscriptions } from "./subscriptions.js";
 
@@ -70,12 +70,13 @@ export function paydayState(data, today = new Date(), picture = planPicture(data
   return { nudge, payDay: pay.day, asOf, stale };
 }
 
-const whole = (amount) => pounds(Math.round(amount)).replace(".00", "");
 const left = (today) => new Date(today.getFullYear(), today.getMonth() + 1, 0).getDate() - today.getDate();
 
 // What's worth a notification today: [{key, title, body, url}]. `key` is
 // unique per alert per month, so each is sent once: a category at 80%,
-// the same category over budget, and the payday nudge.
+// the same category over budget, and the payday nudge. Notifications never
+// carry amounts: they show on lock screens, where anyone nearby can read
+// them. The app shows the numbers once it's unlocked.
 export function alertsFor(data, today = new Date()) {
   const month = monthOf(today);
   const picture = planPicture(data, today);
@@ -88,14 +89,14 @@ export function alertsFor(data, today = new Date()) {
       alerts.push({
         key: `budget:${month}:${row.category}:over`,
         title: `${row.category} is over budget`,
-        body: `${whole(row.spent)} of ${whole(row.budget)} this month, ${togo}`,
+        body: `it's gone past this month's budget, ${togo}`,
         url: "./#/budget",
       });
     } else if (row.share >= 0.8) {
       alerts.push({
         key: `budget:${month}:${row.category}:80`,
         title: `${row.category} is at ${Math.floor(row.share * 100)}%`,
-        body: `${whole(row.spent)} of its ${whole(row.budget)} budget, ${togo}`,
+        body: `of this month's budget, ${togo}`,
         url: "./#/budget",
       });
     }
@@ -106,7 +107,7 @@ export function alertsFor(data, today = new Date()) {
     alerts.push({
       key: `payday:${month}`,
       title: when,
-      body: `About ${whole(payday.nudge.suggest)} is spare to move to savings for ${monthLabel(month).split(" ")[0]}`,
+      body: "there's money spare to move to savings: open f1nanc3 to see how much",
       url: "./#/",
     });
   }

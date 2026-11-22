@@ -5,6 +5,9 @@
 import { AuthError, Cloud } from "./cloud.js";
 import { Finance } from "./data.js";
 import { applyChartStyle } from "./chartstyle.js";
+import { clearPin, hasPin, isLocked, markUnlocked } from "./pin.js";
+import { isPrivate, setPrivate, watchMoney } from "./privacy.js";
+import * as lock from "./views/lock.js";
 import { applyTheme } from "./theme.js";
 import { esc, WIDE, wide } from "./ui.js";
 import * as importer from "./views/importer.js";
@@ -43,7 +46,7 @@ const ROUTES = [
   [/^\/me$/, "me", me.render, "/settings"],
   [/^\/import$/, "import", importer.render, "/settings"],
 ];
-const VIEWS = [overview, transactions, river, budget, subs, charts, wrapped, importer, me];
+const VIEWS = [lock, overview, transactions, river, budget, subs, charts, wrapped, importer, me];
 const handlers = (kind) => Object.assign({}, ...VIEWS.map((view) => view[kind] ?? {}));
 const ACTIONS = handlers("actions");
 const FORMS = handlers("forms");
@@ -70,6 +73,19 @@ function route() {
 
 const ctx = {
   cloud, finance,
+  // The PIN's right: load and show everything.
+  unlocked() {
+    markUnlocked();
+    render();
+    load();
+  },
+  // Too many wrong PINs, or a forgotten one: only the password gets back in.
+  async signOutForPin() {
+    clearPin();
+    await cloud.signOut();
+    finance.clear();
+    render();
+  },
   go(path) {
     if (location.hash !== `#${path}`) history.pushState(null, "", `#${path}`);
     render();
@@ -106,7 +122,9 @@ function focusedField() {
 function render() {
   const current = route();
   const signedIn = cloud.signedIn;
-  const result = signedIn ? current.view(ctx, current.params) : me.renderSignIn();
+  // With a PIN set, nothing shows (or loads) until it's entered.
+  const locked = signedIn && isLocked();
+  const result = !signedIn ? me.renderSignIn() : locked ? lock.renderLock() : current.view(ctx, current.params);
   const fullPath = location.hash;
   const sameRoute = fullPath === currentPath;
   if (!sameRoute && currentPath !== null) scrolls.set(currentPath, window.scrollY);
@@ -118,14 +136,18 @@ function render() {
   currentTab = current.tab;
 
   document.querySelector(".trail").innerHTML = crumbHtml(result.crumbs);
-  document.querySelector("nav").hidden = !signedIn;
+  document.querySelector("nav").hidden = !signedIn || locked;
+  const eye = document.querySelector("button.eye");
+  eye.hidden = !signedIn || locked;
+  eye.setAttribute("aria-pressed", String(isPrivate()));
+  eye.title = isPrivate() ? "show amounts" : "hide amounts";
   for (const link of document.querySelectorAll("nav a, a.cog")) {
     link.classList.toggle("on", signedIn && link.getAttribute("href") === `#${current.tab}`);
   }
-  document.querySelector("a.cog").hidden = !signedIn;
-  main.dataset.view = signedIn ? current.name : "sign-in";
+  document.querySelector("a.cog").hidden = !signedIn || locked;
+  main.dataset.view = !signedIn ? "sign-in" : locked ? "lock" : current.name;
   // While the bank connection needs you, every page says so (not wrapped).
-  const banner = signedIn && current.name !== "wrapped" ? me.bankBanner(finance) : null;
+  const banner = signedIn && !locked && current.name !== "wrapped" ? me.bankBanner(finance) : null;
   const bannerBox = document.querySelector(".banner");
   bannerBox.hidden = !banner;
   bannerBox.innerHTML = banner ?? "";
@@ -135,7 +157,7 @@ function render() {
   window.scrollTo(0, scroll);
   // Views that draw once they're on the page (the river's canvas).
   result.mounted?.();
-  if (signedIn && current.name === "me") me.mounted();
+  if (signedIn && !locked && current.name === "me") me.mounted();
   if (focus) {
     const field = main.querySelector(focus.key);
     if (field) {
@@ -163,7 +185,7 @@ function fillNoise() {
 }
 
 async function load() {
-  if (!cloud.signedIn) return;
+  if (!cloud.signedIn || isLocked()) return;
   await finance.load();
   loadedAt = Date.now();
   // A revoked sign-in shows up as an error here; go back to signing in.
@@ -173,6 +195,8 @@ async function load() {
 // Taps, forms and typing all dispatch by name.
 
 document.addEventListener("click", (event) => {
+  // Using the app keeps it unlocked.
+  if (cloud.signedIn && hasPin() && !isLocked()) markUnlocked();
   // A real link inside a tappable row (a subscription's website) is just a link.
   const anchor = event.target.closest("a[href]");
   if (anchor && !anchor.dataset.action) return;
@@ -181,6 +205,10 @@ document.addEventListener("click", (event) => {
   const name = target.dataset.action;
   if (name === "go") return ctx.go(target.dataset.to);
   if (name === "reload") return load();
+  if (name === "privacy") {
+    setPrivate(!isPrivate());
+    return render();
+  }
   ACTIONS[name]?.(ctx, { ...target.dataset }, target);
 });
 
@@ -188,7 +216,7 @@ document.addEventListener("submit", (event) => {
   const form = event.target.closest("[data-form]");
   if (!form) return;
   event.preventDefault();
-  FORMS[form.dataset.form]?.(ctx, form);
+  FORMS[form.dataset.form]?.(ctx, form, event.submitter);
 });
 
 // Text fields act as you type; menus and file pickers when they change.
@@ -212,7 +240,21 @@ window.addEventListener("hashchange", followAddress);
 window.addEventListener("popstate", followAddress);
 finance.listeners.push(render);
 document.addEventListener("visibilitychange", () => {
-  if (document.visibilityState === "visible" && Date.now() - loadedAt > STALE_MS) load();
+  if (document.visibilityState === "hidden") {
+    // When you left: the lock counts from here.
+    if (cloud.signedIn && hasPin() && !isLocked()) markUnlocked();
+    return;
+  }
+  // Back after a while: lock, and take the data off the screen.
+  if (cloud.signedIn && isLocked()) {
+    finance.clear();
+    return render();
+  }
+  if (Date.now() - loadedAt > STALE_MS) load();
+});
+// Keys: the PIN pad first.
+document.addEventListener("keydown", (event) => {
+  if (cloud.signedIn && isLocked()) lock.lockKeys(ctx, event);
 });
 matchMedia("(prefers-color-scheme: dark)").addEventListener("change", applyTheme);
 // Crossing between phone and desktop widths changes some views' markup.
@@ -221,10 +263,24 @@ window.addEventListener("unhandledrejection", (event) => {
   if (event.reason instanceof AuthError) render();
 });
 
+// Never inside another site's frame: a page could lay invisible buttons
+// over f1nanc3's (clickjacking). GitHub Pages can't send the header that
+// forbids it, so the app refuses to start and opens itself on its own.
+if (window.top !== window.self) {
+  document.body.textContent = "f1nanc3 only opens on its own page.";
+  try {
+    window.top.location.href = location.href;
+  } catch {
+    // The other site blocks it; the message above stays.
+  }
+  throw new Error("f1nanc3 won't run inside a frame");
+}
+
 history.scrollRestoration = "manual";
 if ("serviceWorker" in navigator) navigator.serviceWorker.register("./sw.js").catch(() => {});
 applyTheme();
 applyChartStyle();
+watchMoney();
 fillNoise();
 // Back from approving at the bank: ?code=...&state=... (or ?error=...).
 const back = new URLSearchParams(location.search);

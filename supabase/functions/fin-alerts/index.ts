@@ -8,6 +8,7 @@
 import { createClient, type SupabaseClient } from "npm:@supabase/supabase-js@2.45.4";
 import { alertsFor } from "../../../js/insights.js";
 import { windowStart } from "../../../js/money.js";
+import { sameSecret } from "../_shared/secret.ts";
 import { CORS_HEADERS, type Device, json, sendToDevices } from "../_shared/webpush.ts";
 
 const PAGE = 1000;
@@ -82,7 +83,7 @@ Deno.serve(async (request) => {
 
   try {
     const secret = Deno.env.get("CRON_SECRET");
-    if (secret && request.headers.get("x-cron-secret") === secret) {
+    if (secret && sameSecret(request.headers.get("x-cron-secret"), secret)) {
       if (!body.force && ukHour() !== 9) return json({ skipped: "not 9am in the UK" });
       const { data: devices, error } = await admin.from("fin_push_subscriptions").select("user_id, endpoint, p256dh, auth");
       if (error) return json({ error: "couldn't read devices" }, 500);

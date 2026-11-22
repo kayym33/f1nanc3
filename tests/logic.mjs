@@ -503,9 +503,11 @@ await check("which alerts go out", () => {
   const alerts = alertsFor(data, new Date(2026, 10, 24));
   assert.deepEqual(alerts.map((a) => a.key), ["budget:2026-11:groceries:over", "budget:2026-11:eating out:80", "payday:2026-11"]);
   assert.equal(alerts[1].title, "eating out is at 94%");
-  assert.equal(alerts[1].body, "£85 of its £90 budget, with 6 days to go");
+  assert.equal(alerts[1].body, "of this month's budget, with 6 days to go");
+  // Never an amount: notifications show on lock screens.
+  for (const alert of alerts) assert.ok(!/£|\d+\.\d\d/.test(alert.title + alert.body), `${alert.key} shows money`);
   assert.equal(alerts[2].title, "Payday's in 2 days");
-  assert.ok(alerts[2].body.startsWith("About £"));
+  assert.ok(alerts[2].body.startsWith("there's money spare"));
   // Before payday's close, no nudge.
   assert.ok(!alertsFor(data, new Date(2026, 10, 15)).some((a) => a.key.startsWith("payday")));
 });
@@ -565,6 +567,50 @@ await check("the budget", () => {
   // £75 + £10 left over 9 days (the 22nd to the 30th).
   assert.equal(dailyAllowance(progress, today), 9.44);
   assert.deepEqual(biggestNonEssentials(list, fixed, today).map((row) => row.merchant), ["wedding", "deliveroo"]);
+});
+
+await check("the PIN lock", async () => {
+  // A stand-in for the browser's storage.
+  const store = () => { const map = new Map(); return { getItem: (k) => map.get(k) ?? null, setItem: (k, v) => map.set(k, String(v)), removeItem: (k) => map.delete(k) }; };
+  globalThis.localStorage = store();
+  globalThis.sessionStorage = store();
+  const pin = await import("../js/pin.js");
+  assert.equal(pin.validPin("12345"), true);
+  assert.equal(pin.validPin("123"), false);
+  assert.equal(pin.validPin("12a4"), false);
+  assert.equal(pin.isLocked(), false);
+  await pin.setPin("2468");
+  // The PIN itself is never stored, only a salted hash.
+  assert.ok(!localStorage.getItem("f1nanc3.pin").includes("2468"));
+  assert.equal(pin.pinLength(), 4);
+  assert.equal(pin.isLocked(), false);
+  // Five minutes away locks it.
+  assert.equal(pin.isLocked(Date.now() + pin.LOCK_AFTER_MS + 1000), true);
+  pin.lockNow();
+  assert.equal(pin.isLocked(), true);
+  assert.equal(await pin.checkPin("1111"), "wrong");
+  assert.equal(await pin.checkPin("2468"), "ok");
+  assert.equal(pin.isLocked(), false);
+  // Five wrong tries in a row: then a wait; ten: sign out.
+  const start = Date.now();
+  for (let i = 0; i < 5; i++) assert.equal(await pin.checkPin("0000", start), "wrong");
+  assert.equal(await pin.checkPin("2468", start + 1000), "wait");
+  let now = start;
+  for (let i = 5; i < 9; i++) { now += pin.WAIT_MS + 1; assert.equal(await pin.checkPin("0000", now), "wrong"); }
+  now += pin.WAIT_MS + 1;
+  assert.equal(await pin.checkPin("0000", now), "signout");
+  pin.clearPin();
+  assert.equal(pin.hasPin(), false);
+});
+
+await check("the page's security policy allows its own inline script", async () => {
+  const { readFile } = await import("node:fs/promises");
+  const { createHash } = await import("node:crypto");
+  const html = await readFile(new URL("../index.html", import.meta.url), "utf8");
+  const script = html.match(/<script>([\s\S]*?)<\/script>/)[1];
+  const hash = createHash("sha256").update(script).digest("base64");
+  assert.ok(html.includes(`'sha256-${hash}'`), "index.html's inline script changed: update its hash in the Content-Security-Policy");
+  assert.ok(!/<script>[\s\S]*?<\/script>[\s\S]*<script>/.test(html), "only one inline script is allowed");
 });
 
 if (failures) {

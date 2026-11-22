@@ -522,6 +522,36 @@ nav a.on::before { content: ""; position: absolute; left: 0; right: 0; top: 0; h
 .budget-link span:first-child { color: var(--accent); }
 main[data-view="budget"] { max-width: 820px; }
 
+/* The PIN lock screen. */
+.lock { max-width: 320px; margin: 30px auto; text-align: center; }
+.lock-title { color: var(--ink); font-size: 18px; margin: 0 0 18px; }
+.dots { display: flex; justify-content: center; gap: 14px; margin-bottom: 8px; }
+.dots .dot { width: 14px; height: 14px; border: 2px solid var(--ink); border-radius: 50%; }
+.dots .dot.on { background: var(--ink); }
+.dots.shake { animation: shake 0.4s; }
+@keyframes shake { 20%, 60% { transform: translateX(-8px); } 40%, 80% { transform: translateX(8px); } }
+.lock-message { min-height: 1.5em; color: var(--warning); margin: 6px 0 14px; }
+.keypad { display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; }
+.keypad .key {
+  appearance: none; font: inherit; font-size: 24px; font-weight: 700; color: var(--ink); background: transparent;
+  border: 1px solid var(--ink); border-radius: 50%; aspect-ratio: 1; width: 100%; max-width: 76px; margin: 0 auto; cursor: pointer;
+}
+.keypad .key:active, .keypad .key:hover { background: var(--hover); }
+.lock .forgot { margin-top: 22px; }
+.pin-form button[type="submit"] { margin-top: 12px; }
+@media (prefers-reduced-motion: reduce) { .dots.shake { animation: none; } }
+
+/* Privacy mode: the 👁 in the header; every amount blurred. */
+.eye { appearance: none; border: 0; background: none; color: var(--muted); padding: 4px 6px; cursor: pointer; display: inline-flex; }
+.eye[hidden] { display: none; }
+.eye .slash { display: none; }
+.eye[aria-pressed="true"] { color: var(--accent-text); }
+.eye[aria-pressed="true"] .slash { display: inline; }
+body.private .money { filter: blur(6px); user-select: none; }
+body.private svg text.money { opacity: 0; }
+body.private .budget-amount input, body.private .move-form input[name="amount"] { filter: blur(5px); }
+body.private .budget-amount input:focus, body.private .move-form input[name="amount"]:focus { filter: none; }
+
 /* The ⚙ at the top right: settings. */
 .cog { color: var(--muted); text-decoration: none; font-size: 22px; line-height: 1; padding: 4px 2px 4px 10px; }
 .cog.on { color: var(--accent-text); }

@@ -44,6 +44,25 @@ python tools/make_icons.py    # redraws icons/
 - Look: copied from t1ld3's `phone/style.css`; day/night follow the device; the accent is fixed orange (no picker, by the owner's choice).
 - New files must be added to `SHELL` in `sw.js`.
 
+## Security
+
+- **Notifications never contain amounts** (they show on lock screens). `tests/logic.mjs` fails if an alert has a £ or a decimal.
+- **Escape everything from a statement** with `esc()` before it goes into HTML. Payment references are written by whoever sent the money, so treat them as hostile.
+- **Content-Security-Policy** (a meta tag in `index.html`): only the app's own scripts, and connections only to Supabase (plus `localhost:8766`, the stand-in server). The one inline script (the theme) is allowed by its sha256. If you change it, update the hash; the tests check it. Adding another origin (a CDN, an API) means adding it to the policy.
+- The app refuses to run inside a frame (clickjacking); GitHub Pages can't send `frame-ancestors`.
+- **PIN lock (`js/pin.js`, `js/views/lock.js`)**:
+  - per device; stores only a salted PBKDF2 hash
+  - locks on open and after 5 minutes hidden; nothing is fetched while locked, and the data is cleared from memory when it locks
+  - 5 wrong tries starts a 30s wait; 10 signs out and forgets the PIN
+  - it's a screen lock, not encryption: someone with devtools on an unlocked browser can remove it, and the password plus RLS are what protect the data
+- **Privacy mode (`js/privacy.js`)**: a MutationObserver wraps every `£…` in `<span class="money">` (or marks the SVG `<text>`), and `body.private` blurs them. Canvas drawing (the river) checks `isPrivate()` itself, so any new canvas text must too.
+- **Sign-out uses `scope=local`**. Supabase's default signs out every device, t1ld3 included.
+- **Server**:
+  - the cron functions compare `x-cron-secret` with `_shared/secret.ts` (constant time)
+  - user-facing functions check the bearer token themselves (`--no-verify-jwt` is only there for CORS preflights)
+  - `fin_alerts_sent` has RLS with no policies, so only the service role touches it
+  - every `fin_*` table is "own rows only"
+
 ## Plan (agreed with the owner, 2026-11-22)
 
 RBS current accounts only, GBP only. Categories are a generic fixed set; transfers between own accounts are excluded; budgets are per category per calendar month, no rollover.
