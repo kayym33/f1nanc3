@@ -201,6 +201,14 @@ export class Cloud {
     });
   }
 
+  // DELETE rows matching filters ({column: "eq.value"}).
+  async remove(table, filters) {
+    const params = new URLSearchParams(filters);
+    await this.request("DELETE", `/rest/v1/${table}?${params}`, undefined, {
+      headers: { Prefer: "return=minimal" },
+    });
+  }
+
   async rpc(name, args = {}) {
     return this.request("POST", `/rest/v1/rpc/${name}`, args);
   }

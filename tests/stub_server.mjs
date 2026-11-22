@@ -42,6 +42,7 @@ function matches(row, params) {
     const value = rest.join(".");
     const actual = String(row[column]);
     if (op === "eq" && actual !== value) return false;
+    if (op === "in" && !value.replace(/^\(|\)$/g, "").split(",").includes(actual)) return false;
     if (op === "neq" && actual === value) return false;
     if (op === "gte" && actual < value) return false;
   }
@@ -81,6 +82,10 @@ createServer(async (request, response) => {
   }
   if (route === "PATCH /rest/v1/fin_transactions") {
     for (const row of transactions.values()) if (matches(row, url.searchParams)) Object.assign(row, data);
+    return json(response, 204);
+  }
+  if (route === "DELETE /rest/v1/fin_rules") {
+    for (const merchant of [...rules.keys()]) if (matches({ merchant }, url.searchParams)) rules.delete(merchant);
     return json(response, 204);
   }
   if (route === "GET /rest/v1/fin_rules") {

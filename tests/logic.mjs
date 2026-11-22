@@ -98,6 +98,15 @@ await check("merchants", () => {
   assert.equal(merchantOf("AMAZON* AB12CD34E"), "amazon");
   assert.equal(merchantOf("O2 MOBILE , 1234567"), "o2 mobile");
   assert.equal(merchantOf("JET2.COM , LEEDS GB"), "jet2.com");
+  // RBS card payments can have C, D or CD after the date.
+  assert.equal(merchantOf("4378 20NOV26 CD , MCDONALDS 1234 , EDINBURGH GB"), "mcdonalds");
+  assert.equal(merchantOf("4378 20NOV26 C , GREGGS 1234 , EDINBURGH GB"), "greggs");
+  assert.equal(merchantOf("4378 20NOV26 D , TRAINLINE , LONDON GB"), "trainline");
+  // Online payments are told apart by the account they went to or came from.
+  assert.equal(merchantOf("To A/C 12345678 , SOME NAME , Via Mobile Xfer", "DPC"), "to a/c …5678");
+  assert.equal(merchantOf("From A/C 87654321 , REF1 , Via Mobile Xfer", "DPC"), "from a/c …4321");
+  assert.equal(merchantOf("30NOV GRS 12345678", "INT"), "interest");
+  assert.equal(merchantOf("ROUND UP FROM 12345678", "TFR"), "round up from");
 });
 
 await check("category guesses", () => {
@@ -112,6 +121,8 @@ await check("category guesses", () => {
   assert.equal(guess("paypal netflix.com"), "entertainment");
   assert.equal(guessCategory({ merchant: "rbs", amount: -20, type: "C/L" }).category, "cash");
   assert.equal(guess("employer ltd", 1850), "income");
+  assert.equal(guess("round up to", -0.4, "TFR"), "transfers");
+  assert.equal(guess("round up from", 0.4, "TFR"), "transfers");
   const rules = new Map([["tesco stores", "shopping"]]);
   assert.deepEqual(guessCategory({ merchant: "tesco stores", amount: -5 }, rules), { category: "shopping", source: "rule" });
 });
