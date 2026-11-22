@@ -318,32 +318,75 @@ nav a.on::before { content: ""; position: absolute; left: 0; right: 0; top: 0; h
 .legal-links { margin-top: 32px; color: var(--muted); font-size: 12px; }
 .legal-links a { color: var(--muted); }
 
-/* Charts (views/charts.js). Two series colours: ink, and orange (the
-   darker one by day for contrast on bone). Text stays in ink. */
-:root { --series-out: #B44718; }
-@media (prefers-color-scheme: dark) { :root:not([data-theme="day"]) { --series-out: #E8642C; } }
-:root[data-theme="night"] { --series-out: #E8642C; }
+/* Charts (views/charts.js). Colours come from the chosen chart style
+   (<html data-charts>, js/chartstyle.js) and day or night. Each pair was
+   checked for colour-blind separation and contrast (dataviz validator):
+   terminal ink + orange (#B44718 by day for contrast on bone), green/red
+   #0A5C45 + #D84A2C by day, #5CCB8F + #F0574A at night. Text stays ink. */
+:root { --series-in: var(--ink); --series-out: #B44718; --series-last: var(--muted); --good: var(--ink); --bad: #B44718; }
+:root[data-charts="terminal-rg"] { --series-in: #0A5C45; --series-out: #D84A2C; --good: #0A5C45; --bad: #D84A2C; }
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="day"]) { --series-out: #E8642C; --bad: #E8642C; }
+  :root[data-charts="terminal-rg"]:not([data-theme="day"]) { --series-in: #5CCB8F; --series-out: #F0574A; --good: #5CCB8F; --bad: #F0574A; }
+}
+:root[data-theme="night"] { --series-out: #E8642C; --bad: #E8642C; }
+:root[data-theme="night"][data-charts="terminal-rg"] { --series-in: #5CCB8F; --series-out: #F0574A; --good: #5CCB8F; --bad: #F0574A; }
+
 .chart-block { margin-bottom: 30px; }
 .chart-block h2 { margin-top: 18px; }
-.chart { width: 100%; touch-action: pan-y; }
-.chart svg { display: block; overflow: visible; }
+.headline { display: flex; flex-wrap: wrap; align-items: baseline; gap: 4px 10px; color: var(--ink); margin: 0 0 6px; }
+.headline .big { font-size: 24px; font-weight: 700; font-variant-numeric: tabular-nums; }
+.delta { font-size: 13px; font-weight: 700; color: var(--ink-soft); }
+.delta.good, .readout .good { color: var(--good); }
+.delta.bad, .readout .bad { color: var(--bad); }
+.chart { width: 100%; touch-action: pan-y; -webkit-user-select: none; user-select: none; }
+.chart svg { display: block; overflow: visible; cursor: crosshair; }
 .chart .grid { stroke: var(--rule); stroke-width: 1; }
+.chart .grid.dotted { stroke-dasharray: 2 4; }
 .chart .tick { fill: var(--muted); font: 11px var(--mono); }
-.chart .s-in { fill: var(--ink); }
-.chart .s-out { fill: var(--series-out); }
-.chart .l-in { fill: none; stroke: var(--ink); stroke-width: 2; stroke-linejoin: round; opacity: 0.55; }
-.chart .l-out { fill: none; stroke: var(--series-out); stroke-width: 2; stroke-linejoin: round; }
-.chart .l-spark { fill: none; stroke: var(--ink); stroke-width: 2; stroke-linejoin: round; stroke-linecap: round; }
-.chart .s-out-dot { fill: var(--series-out); stroke: var(--background); stroke-width: 2; }
-.chart .crosshair { stroke: var(--muted); stroke-width: 1; stroke-dasharray: 2 3; }
-.chart .hit { fill: transparent; cursor: crosshair; }
+.chart .line { fill: none; stroke-width: 2; stroke-linejoin: round; stroke-linecap: round; }
+.chart .line.thick { stroke-width: 3; }
+.chart .line.partial { stroke-dasharray: 3 4; }
+.chart .line.in { stroke: var(--series-in); }
+.chart .line.out { stroke: var(--series-out); }
+.chart .line.last { stroke: var(--series-last); }
+.chart .line.spark { stroke: var(--ink); }
+.chart .fill { stroke: none; }
+.chart .fill.in { fill: var(--series-in); opacity: 0.12; }
+.chart .fill.out { fill: var(--series-out); opacity: 0.18; }
+.chart .fill.last { fill: var(--series-last); opacity: 0.1; }
+.chart .fill.spark { fill: var(--ink); opacity: 0.07; }
+.chart .bar.in { fill: var(--series-in); }
+.chart .bar.out { fill: var(--series-out); }
+.chart .dot { stroke: var(--background); stroke-width: 2; }
+.chart .dot.in { fill: var(--series-in); }
+.chart .dot.out { fill: var(--series-out); }
+.chart .dot.last { fill: var(--series-last); }
+.chart .last-level { stroke-width: 1; stroke-dasharray: 1 3; opacity: 0.7; }
+.chart .last-level.in { stroke: var(--series-in); }
+.chart .last-level.out { stroke: var(--series-out); }
+.chart .last-level.last { stroke: var(--series-last); }
+.chart .tag.in { fill: var(--series-in); }
+.chart .tag.out { fill: var(--series-out); }
+.chart .tag.last { fill: var(--series-last); }
+.chart .tag.cursor { fill: var(--ink); }
+.chart .tag-text { fill: var(--background); font: 700 11px var(--mono); }
+.chart .cross line { stroke: var(--muted); stroke-width: 1; stroke-dasharray: 3 3; }
+.chart .brush { fill: var(--good); fill-opacity: 0.14; stroke: var(--good); stroke-opacity: 0.6; stroke-dasharray: 3 3; }
+:root:not([data-charts="terminal-rg"]) .chart .brush { fill: var(--series-out); stroke: var(--series-out); }
+.chart .hit { fill: transparent; }
+.readout { min-height: 1.5em; margin: 6px 0 0; font-size: 12px; color: var(--ink); font-variant-numeric: tabular-nums; }
+.readout .hint { color: var(--muted); font-style: italic; }
+.readout.on { border-left: 3px solid var(--series-out); padding-left: 8px; }
 .legend { display: flex; align-items: center; gap: 6px; color: var(--ink-soft); font-size: 12px; margin: 0 0 6px; }
 .legend .key { display: inline-block; width: 10px; height: 10px; border-radius: 2px; margin-left: 8px; }
 .legend .key:first-child { margin-left: 0; }
-.legend .key.in { background: var(--ink); }
+.legend .key.in { background: var(--series-in); }
 .legend .key.out { background: var(--series-out); }
-.legend .key.faded { opacity: 0.55; }
-.chart-line { color: var(--ink); margin: 0 0 8px; }
+.legend .key.last { background: var(--series-last); }
+/* Soft: a raised card, like a banking app. */
+:root[data-charts="soft"] .chart-block { background: var(--field); border-radius: 14px; padding: 4px 16px 14px; }
+:root[data-charts="soft"] .chart-block h2 { margin-top: 14px; }
 .chart-tip {
   position: fixed; z-index: 30; pointer-events: none; max-width: 240px;
   background: var(--background); border: 1px solid var(--ink); padding: 7px 10px;
@@ -358,11 +401,12 @@ nav a.on::before { content: ""; position: absolute; left: 0; right: 0; top: 0; h
 .multiple .now small { display: block; color: var(--muted); font-size: 11px; font-weight: 400; }
 /* The spreadsheet scrolls sideways on its own; the page never does. */
 .sheet-wrap { overflow-x: auto; margin: 6px -16px 0; padding: 0 16px; -webkit-overflow-scrolling: touch; }
-.sheet { border-collapse: collapse; font-size: 12px; min-width: 100%; }
+.sheet { border-collapse: collapse; font-size: 12px; min-width: 100%; font-variant-numeric: tabular-nums; }
 .sheet th, .sheet td { padding: 6px 8px; border-bottom: 1px solid var(--rule); white-space: nowrap; }
 .sheet thead th { color: var(--muted); font-weight: 700; text-align: left; border-bottom-color: var(--ink); }
 .sheet thead small { color: var(--faint); margin-left: 2px; font-weight: 400; }
 .sheet tbody th, .sheet tfoot th { color: var(--ink); font-weight: 400; text-align: left; position: sticky; left: 0; background: var(--background); }
+:root[data-charts="soft"] .sheet tbody th, :root[data-charts="soft"] .sheet tfoot th { background: var(--field); }
 .sheet .num { text-align: right; }
 .sheet .cell { color: var(--ink); cursor: pointer; background: color-mix(in srgb, var(--series-out) calc(var(--shade, 0) * 100%), transparent); }
 .sheet .cell:hover { outline: 1px solid var(--ink); outline-offset: -1px; }

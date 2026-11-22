@@ -4,6 +4,7 @@
 // to by name (data-action="tx-more"). Modelled on t1ld3's phone app.
 import { AuthError, Cloud } from "./cloud.js";
 import { Finance } from "./data.js";
+import { applyChartStyle } from "./chartstyle.js";
 import { applyTheme } from "./theme.js";
 import { esc, WIDE, wide } from "./ui.js";
 import * as importer from "./views/importer.js";
@@ -220,6 +221,7 @@ window.addEventListener("unhandledrejection", (event) => {
 history.scrollRestoration = "manual";
 if ("serviceWorker" in navigator) navigator.serviceWorker.register("./sw.js").catch(() => {});
 applyTheme();
+applyChartStyle();
 fillNoise();
 // Back from approving at the bank: ?code=...&state=... (or ?error=...).
 const back = new URLSearchParams(location.search);

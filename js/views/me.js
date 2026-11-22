@@ -3,6 +3,7 @@
 // screen.
 import { BANK_CONNECTION } from "../config.js";
 import { dayLabel } from "../money.js";
+import { CHART_STYLES, chartStyle, setChartStyle } from "../chartstyle.js";
 import { setTheme, theme, THEMES } from "../theme.js";
 import { action, button, esc, heading } from "../ui.js";
 
@@ -107,6 +108,9 @@ export function render(ctx) {
       ${heading("theme")}
       <div class="chips">${THEMES.map((choice) => `<button type="button" class="chip${choice === theme() ? " on" : ""}" ${action("me-theme", { value: choice })}>${choice}</button>`).join("")}</div>
       <p class="hint">auto follows this device's light and dark mode; the choice is kept on this device only</p>
+      ${heading("charts")}
+      <div class="chips">${CHART_STYLES.map(([name, label]) => `<button type="button" class="chip${name === chartStyle() ? " on" : ""}" ${action("me-charts", { value: name })}>${label}</button>`).join("")}</div>
+      <p class="hint">terminal: area lines and price tags in ink and orange · green/red: the same in finance colours · soft: rounded bars, like a banking app. Kept on this device.</p>
       <p class="legal-links"><a href="privacy.html">privacy</a> · <a href="terms.html">terms</a></p>`,
   };
 }
@@ -154,6 +158,10 @@ export const actions = {
     }
     bankState.working = null;
     await ctx.finance.load();
+  },
+  "me-charts"(ctx, { value }) {
+    setChartStyle(value);
+    ctx.render();
   },
   "me-theme"(ctx, { value }) {
     setTheme(value);
