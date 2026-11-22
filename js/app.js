@@ -11,6 +11,7 @@ import * as me from "./views/me.js";
 import * as overview from "./views/overview.js";
 import * as river from "./views/river.js";
 import * as subs from "./views/subs.js";
+import * as charts from "./views/charts.js";
 import * as transactions from "./views/transactions.js";
 import * as wrapped from "./views/wrapped.js";
 
@@ -33,12 +34,13 @@ const ROUTES = [
   [/^\/river\/(?<month>\d{4}-\d{2})$/, "river", river.render, "/river"],
   [/^\/wrapped$/, "wrapped", wrapped.render, "/"],
   [/^\/subs$/, "subs", subs.render, "/subs"],
+  [/^\/charts$/, "charts", charts.render, "/charts"],
   [/^\/subs\/(?<key>[^/]+)$/, "sub", subs.renderOne, "/subs"],
   [/^\/settings$/, "me", me.render, "/settings"],
   [/^\/me$/, "me", me.render, "/settings"],
   [/^\/import$/, "import", importer.render, "/settings"],
 ];
-const VIEWS = [overview, transactions, river, subs, wrapped, importer, me];
+const VIEWS = [overview, transactions, river, subs, charts, wrapped, importer, me];
 const handlers = (kind) => Object.assign({}, ...VIEWS.map((view) => view[kind] ?? {}));
 const ACTIONS = handlers("actions");
 const FORMS = handlers("forms");

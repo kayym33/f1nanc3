@@ -34,6 +34,11 @@ serves it as it is.
   (js/services.js) names them and links to where you manage or cancel
   them; add your own link for anything else, move anything between
   subscriptions and bills, or hide what isn't one.
+- **Charts**: in vs out each month, this month's spending pace against
+  last month, each category over time (small multiples), and a
+  spreadsheet of categories by month (shaded by size, each cell opens its
+  transactions) with a CSV download. Hover or tap any chart for its
+  numbers.
 - **Settings** (⚙ at the top): your account, importing statements, theme.
 - **Categories** are guessed from the merchant's name. Money moving
   between your own accounts (the same amount out of one and into another
@@ -49,8 +54,7 @@ serves it as it is.
   Bank and CSV transactions don't double up (same account, date and
   amount). A banner shows from 7 days before the bank's approval runs out.
 
-Coming next: budgets with an 80% alert, subscriptions, month-by-month
-trends.
+Coming next: budgets with an 80% alert.
 
 ## Setting it up (once)
 

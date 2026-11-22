@@ -5,8 +5,8 @@ const CACHE = "f1nanc3-shell";
 const SHELL = [
   "./", "index.html", "style.css", "manifest.webmanifest", "icons/icon-180.png", "icons/icon-192.png",
   "js/app.js", "js/bank.js", "js/categories.js", "js/chart.js", "js/cloud.js", "js/config.js", "js/csv.js", "js/data.js", "js/flow.js",
-  "js/money.js", "js/services.js", "js/subscriptions.js", "js/summary.js", "js/theme.js", "js/ui.js", "js/wrapped.js",
-  "js/views/importer.js", "js/views/me.js", "js/views/overview.js", "js/views/river.js", "js/views/subs.js", "js/views/transactions.js", "js/views/wrapped.js",
+  "js/money.js", "js/services.js", "js/subscriptions.js", "js/summary.js", "js/trends.js", "js/theme.js", "js/ui.js", "js/wrapped.js",
+  "js/views/charts.js", "js/views/importer.js", "js/views/me.js", "js/views/overview.js", "js/views/river.js", "js/views/subs.js", "js/views/transactions.js", "js/views/wrapped.js",
 ];
 
 self.addEventListener("install", (event) => {
