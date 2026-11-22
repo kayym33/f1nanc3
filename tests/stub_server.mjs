@@ -11,6 +11,8 @@ const ROOT = new URL("..", import.meta.url).pathname;
 const TYPES = { ".html": "text/html", ".js": "text/javascript", ".css": "text/css", ".png": "image/png", ".webmanifest": "application/manifest+json" };
 const transactions = new Map();
 const rules = new Map();
+// The pretend bank connection: [{id, bank, status, valid_until, accounts, ...}].
+const links = [];
 
 createServer(async (request, response) => {
   const path = new URL(request.url, "http://localhost").pathname;
@@ -83,6 +85,38 @@ createServer(async (request, response) => {
   if (route === "PATCH /rest/v1/fin_transactions") {
     for (const row of transactions.values()) if (matches(row, url.searchParams)) Object.assign(row, data);
     return json(response, 204);
+  }
+  if (route === "GET /rest/v1/fin_bank_links") {
+    return json(response, 200, links.filter((link) => matches(link, url.searchParams)).reverse());
+  }
+  // A pretend bank: "approving" sends you straight back with a code.
+  if (route === "POST /functions/v1/bank") {
+    const active = links.find((link) => link.status === "active");
+    if (data.action === "start") {
+      links.push({ id: `l${links.length}`, bank: "Royal Bank of Scotland", status: "pending", state: "s1", accounts: [], valid_until: null, last_synced_at: null, last_error: null });
+      return json(response, 200, { url: `${data.redirect_url}?api=http://localhost:8766&code=c1&state=s1` });
+    }
+    if (data.action === "finish") {
+      const pending = links.findLast((link) => link.status === "pending");
+      if (!pending || data.state !== pending.state) return json(response, 400, { error: "this approval doesn't match a connection you started" });
+      Object.assign(pending, {
+        status: "active", valid_until: new Date(Date.now() + (Number(process.env.STUB_DAYS ?? 90)) * 86400000).toISOString(),
+        last_synced_at: new Date().toISOString(),
+        accounts: [{ account: "…5678" }, { account: "…4321" }],
+      });
+      const today = new Date().toISOString().slice(0, 10);
+      transactions.set("ebnew", { id: "ebnew", account: "…5678", booked_on: today, amount: -3.2, description: "GREGGS 12 , EDINBURGH GB", merchant: "greggs", type: "", category: "eating out", category_source: "auto", source: "bank", balance: null, created_at: Date.now() });
+      return json(response, 200, { added: 1, accounts: ["…5678", "…4321"] });
+    }
+    if (data.action === "sync") {
+      if (!active) return json(response, 400, { error: "no bank is connected" });
+      active.last_synced_at = new Date().toISOString();
+      return json(response, 200, { added: 0 });
+    }
+    if (data.action === "disconnect") {
+      for (const link of links) if (link.status !== "disconnected") link.status = "disconnected";
+      return json(response, 200, {});
+    }
   }
   if (route === "DELETE /rest/v1/fin_rules") {
     for (const merchant of [...rules.keys()]) if (matches({ merchant }, url.searchParams)) rules.delete(merchant);

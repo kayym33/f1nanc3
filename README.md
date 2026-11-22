@@ -34,8 +34,14 @@ serves it as it is.
 - **13 months** are kept: the current month and the 12 before it. A daily
   job on the server deletes anything older.
 
-Coming next: a daily bank connection (Enable Banking), budgets with an 80%
-alert, subscriptions, month-by-month trends.
+- **Bank connection** (Enable Banking): connect RBS once from **me**, and
+  new transactions arrive every morning at 6am UK time, or on **sync now**.
+  Connecting fetches as much history as the bank gives, up to 13 months.
+  Bank and CSV transactions don't double up (same account, date and
+  amount). A banner shows from 7 days before the bank's approval runs out.
+
+Coming next: budgets with an 80% alert, subscriptions, month-by-month
+trends.
 
 ## Setting it up (once)
 
@@ -45,7 +51,25 @@ alert, subscriptions, month-by-month trends.
 2. **Hosting.** Settings → Pages: Source **GitHub Actions**, custom
    domain `finance.kaylamc.uk`, Enforce HTTPS. At LCN, add a CNAME record
    `finance` → `kayym33.github.io`. Every push to `main` deploys.
-3. **On the iPhone.** Open the address in Safari, sign in, then share →
+3. **Bank connection** (Enable Banking, free for your own accounts).
+   Register a **Production** application at enablebanking.com with the
+   redirect URL `https://f1nanc3.kaylamc.uk/`, keep the downloaded `.pem`
+   private key somewhere safe (never in this repo), and activate the app by
+   linking your accounts in their Control Panel. Then, from this folder
+   (after `npx supabase link --project-ref zuzpyrwoovdavbuqrqpx`):
+
+   ```bash
+   npx supabase secrets set ENABLE_BANKING_APP_ID=<application id> \
+     ENABLE_BANKING_KEY="$(cat ~/keys/<your key>.pem)"
+   npx supabase functions deploy bank --no-verify-jwt
+   npx supabase functions deploy bank-sync --no-verify-jwt
+   ```
+
+   and run `supabase/cron.sql` (the 6am fetch; it uses t1ld3's vault
+   secret `t1ld3_cron_secret`). Optional secrets: `ENABLE_BANKING_BANK`
+   and `ENABLE_BANKING_COUNTRY` pick another bank (default Royal Bank of
+   Scotland, GB).
+4. **On the iPhone.** Open the address in Safari, sign in, then share →
    add to home screen.
 
 ## Privacy
