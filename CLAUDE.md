@@ -12,8 +12,10 @@ The owner wants nothing they won't use: **ask before adding any feature** that i
 
 ```bash
 node tests/logic.mjs          # the no-UI logic
-node tests/stub_server.mjs    # app on :8765, pretend Supabase on :8766
+node tests/stub_server.mjs    # app on :8765, pretend Supabase on :8766, with a pretend year
 # open http://localhost:8765/?api=http://localhost:8766 and sign in with anything
+# (STUB_EMPTY=1 starts it empty). For local previews and screenshots ALWAYS use
+# the ?api= address: http://localhost:8765/ alone talks to the owner's real data.
 python tools/make_icons.py    # redraws icons/
 ```
 

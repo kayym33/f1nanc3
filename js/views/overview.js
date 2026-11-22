@@ -20,11 +20,17 @@ function balanceHtml(ctx) {
   const spend = group("spending");
   const saved = group("savings");
   const latest = balances.map((b) => b.date).sort().at(-1);
-  const parts = (list) => list.map((b) => `<span class="part">${esc(ctx.finance.accountName(b.account))} ${esc(pounds(b.balance))}</span>`).join("");
+  // An overdrawn account keeps its minus sign (pounds() drops it).
+  const money = (value) => (value < 0 ? `−${pounds(value)}` : pounds(value));
+  const parts = (list) => list.map((b) => `<span class="part${b.balance < 0 ? " overdrawn" : ""}">${esc(ctx.finance.accountName(b.account))} ${esc(money(b.balance))}${b.balance < 0 ? " overdrawn" : ""}</span>`).join("");
+  const sum = (list) => {
+    const value = total(list);
+    return `<span class="big${value < 0 ? " overdrawn" : ""}">${esc(money(value))}</span>`;
+  };
   return `
     <div class="balance">
-      ${spend.length ? `<div><span class="big">${esc(pounds(total(spend)))}</span> to spend ${parts(spend)}</div>` : ""}
-      ${saved.length ? `<div><span class="big">${esc(pounds(total(saved)))}</span> saved ${parts(saved)}</div>` : ""}
+      ${spend.length ? `<div>${sum(spend)} to spend ${parts(spend)}</div>` : ""}
+      ${saved.length ? `<div>${sum(saved)} saved ${parts(saved)}</div>` : ""}
       <p class="hint">balances as of ${esc(dayLabel(latest))}, from your last import${ctx.finance.accounts.size ? "" : " · name your accounts in settings ⚙"}</p>
     </div>`;
 }

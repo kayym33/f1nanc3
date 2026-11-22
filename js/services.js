@@ -89,6 +89,12 @@ export const SERVICES = [
   { name: "Hyperoptic", kind: "bill", match: ["hyperoptic"], url: "https://www.hyperoptic.com/account/" },
   { name: "Community Fibre", kind: "bill", match: ["community fibre"], url: "https://www.communityfibre.co.uk/" },
   // Car and insurance
+  { name: "VW Financial Services", kind: "bill", match: ["vwfs", "volkswagen financial"], url: "https://www.vwfs.co.uk/" },
+  { name: "Black Horse", kind: "bill", match: ["black horse"], url: "https://www.blackhorse.co.uk/" },
+  { name: "Santander Consumer Finance", kind: "bill", match: ["santander consumer"], url: "https://www.santanderconsumer.co.uk/" },
+  { name: "Close Brothers Motor Finance", kind: "bill", match: ["close brothers"], url: "https://www.closebrothersmotorfinance.com/" },
+  { name: "MotoNovo", kind: "bill", match: ["motonovo"], url: "https://www.motonovofinance.com/" },
+  { name: "Moneybarn", kind: "bill", match: ["moneybarn"], url: "https://www.moneybarn.com/" },
   { name: "DVLA vehicle tax", kind: "bill", match: ["dvla"], url: "https://www.gov.uk/vehicle-tax" },
   { name: "Admiral", kind: "bill", match: ["admiral"], url: "https://www.admiral.com/" },
   { name: "Aviva", kind: "bill", match: ["aviva"], url: "https://www.aviva.co.uk/myaviva/" },

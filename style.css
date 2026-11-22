@@ -461,6 +461,7 @@ nav a.on::before { content: ""; position: absolute; left: 0; right: 0; top: 0; h
 .balance .big { color: var(--ink); font-size: 18px; font-weight: 700; font-variant-numeric: tabular-nums; }
 .balance .part { color: var(--muted); font-size: 12px; margin-left: 10px; white-space: nowrap; }
 .balance .hint { margin: 4px 0 0; }
+.balance .overdrawn { color: var(--warning); }
 .coming li.in .amount { color: var(--good); }
 .coming li small { color: var(--muted); }
 /* Settings: naming accounts. */
