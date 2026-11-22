@@ -3,18 +3,46 @@
 // http://localhost:8765/?api=http://localhost:8766 and sign in with any
 // email and password. Serves the app on 8765 and a pretend API on 8766,
 // keeping data in memory. Only what f1nanc3 uses is implemented.
+// It starts with a year of made-up transactions (tests/pretend_data.mjs);
+// STUB_EMPTY=1 starts it empty instead.
 import { readFile } from "node:fs/promises";
 import { createServer } from "node:http";
 import { extname, join, normalize } from "node:path";
+import { ACCOUNT_NAMES, pretendTransactions } from "./pretend_data.mjs";
 
 const ROOT = new URL("..", import.meta.url).pathname;
 const TYPES = { ".html": "text/html", ".js": "text/javascript", ".css": "text/css", ".png": "image/png", ".webmanifest": "application/manifest+json" };
 const transactions = new Map();
-const rules = new Map();
 // Account names: account -> {name, kind}.
 const accountNames = new Map();
 // Subscription choices: merchant -> {kind, url, hidden}.
 const subscriptionSettings = new Map();
+const rules = new Map();
+// As supabase/schema.sql's fin_mark_transfers: the same amount out of one
+// account and into another within a day is a transfer.
+function markTransfers() {
+  const all = [...transactions.values()];
+  let marked = 0;
+  for (const t of all) {
+    if (t.category_source !== "auto" || t.category === "transfers") continue;
+    const day = Date.parse(t.booked_on);
+    const pair = all.some((o) => o.account !== t.account && Number(o.amount) === -Number(t.amount)
+      && Math.abs(Date.parse(o.booked_on) - day) <= 86400000);
+    if (pair) {
+      t.category = "transfers";
+      marked++;
+    }
+  }
+  return marked;
+}
+
+if (!process.env.STUB_EMPTY) {
+  for (const row of pretendTransactions()) transactions.set(row.id, row);
+  for (const { account, name, kind } of ACCOUNT_NAMES) accountNames.set(account, { name, kind });
+  markTransfers();
+  // The rent goes to a person, so it's set as a bill, as you would.
+  subscriptionSettings.set("to a/c …5555", { kind: "bill", url: null, hidden: false });
+}
 // The pretend bank connection: [{id, bank, status, valid_until, accounts, ...}].
 const links = [];
 
@@ -148,19 +176,7 @@ createServer(async (request, response) => {
     return json(response, 201);
   }
   if (route === "POST /rest/v1/rpc/fin_mark_transfers") {
-    const all = [...transactions.values()];
-    let marked = 0;
-    for (const t of all) {
-      if (t.category_source !== "auto" || t.category === "transfers") continue;
-      const day = Date.parse(t.booked_on);
-      const pair = all.some((o) => o.account !== t.account && Number(o.amount) === -Number(t.amount)
-        && Math.abs(Date.parse(o.booked_on) - day) <= 86400000);
-      if (pair) {
-        t.category = "transfers";
-        marked++;
-      }
-    }
-    return json(response, 200, marked);
+    return json(response, 200, markTransfers());
   }
   json(response, 404, { message: `stub has no ${route}` });
 }).listen(8766);

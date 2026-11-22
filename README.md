@@ -99,7 +99,7 @@ Coming next: budgets with an 80% alert.
 
 ```bash
 node tests/logic.mjs          # statement reading, categories, the window
-node tests/stub_server.mjs    # a pretend Supabase, then open:
+node tests/stub_server.mjs    # a pretend Supabase with a made-up year, then open:
 # http://localhost:8765/?api=http://localhost:8766  (any email/password)
 python tools/make_icons.py    # redraws icons/ (needs Pillow)
 ```

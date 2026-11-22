@@ -39,11 +39,65 @@ function queryString({ month, category }) {
   return search ? `?${search}` : "";
 }
 
+// The table's columns: what each sorts by, and its first direction.
+// Amount's first click puts the biggest spending at the top.
+const COLUMNS = [
+  { key: "date", label: "date", value: (t) => t.booked_on, first: "desc" },
+  { key: "merchant", label: "merchant", value: (t) => displayName(t.merchant).toLowerCase(), first: "asc" },
+  { key: "category", label: "category", value: (t) => t.category, first: "asc" },
+  { key: "amount", label: "amount", value: (t) => t.amount, first: "asc", num: true },
+  { key: "account", label: "account", value: (t) => nameOf(t.account).toLowerCase(), first: "asc" },
+];
+const SORT_KEY = "f1nanc3.txSort";
+const WIDTHS_KEY = "f1nanc3.txColumns";
+
+function stored(key, fallback) {
+  try {
+    return JSON.parse(localStorage.getItem(key)) ?? fallback;
+  } catch {
+    return fallback;
+  }
+}
+
+function store(key, value) {
+  try {
+    if (value === null) localStorage.removeItem(key);
+    else localStorage.setItem(key, JSON.stringify(value));
+  } catch {
+    // Storage is off: it lasts until the page closes.
+  }
+}
+
+// The table's order, remembered on this device: newest first to start.
+let sort = stored(SORT_KEY, { key: "date", dir: "desc" });
+
+// Sorted by the chosen column; ties stay newest first.
+export function sorted(list, by = sort) {
+  const column = COLUMNS.find((c) => c.key === by.key) ?? COLUMNS[0];
+  const sign = by.dir === "asc" ? 1 : -1;
+  return [...list].sort((a, b) => {
+    const x = column.value(a);
+    const y = column.value(b);
+    const order = x < y ? -1 : x > y ? 1 : 0;
+    return order * sign || b.booked_on.localeCompare(a.booked_on);
+  });
+}
+
 function tableHtml(shown, filters, selected) {
   const query = queryString(filters);
+  // Column widths you've dragged, remembered on this device.
+  const widths = stored(WIDTHS_KEY, null);
+  const head = COLUMNS.map((column, i) => {
+    const on = sort.key === column.key;
+    const arrow = on ? (sort.dir === "asc" ? "▲" : "▼") : "";
+    return `<th class="${column.num ? "num " : ""}${on ? "sorted" : ""}" aria-sort="${on ? (sort.dir === "asc" ? "ascending" : "descending") : "none"}">
+      <button type="button" class="sort" ${action("tx-sort", { key: column.key })}>${esc(column.label)}<span class="arrow">${arrow}</span></button>
+      <span class="col-resize" data-col="${i}" title="drag to resize · double-click to reset" aria-hidden="true"></span></th>`;
+  }).join("");
   return `
-    <table class="tx-table">
-      <thead><tr><th>date</th><th>merchant</th><th>category</th><th class="num">amount</th><th>account</th></tr></thead>
+    <table class="tx-table${widths ? " sized" : ""}">
+      ${widths ? `<colgroup>${widths.map((width) => `<col style="width:${Number(width)}px">`).join("")}</colgroup>` : ""}
+      <thead><tr>${head}</tr></thead>
       <tbody>${shown.map((t) => `
         <tr class="${t.id === selected ? "on" : ""}" ${action("go", { to: `/tx/${t.id}${query}` })}>
           <td class="date">${esc(dayLabel(t.booked_on))}</td>
@@ -63,7 +117,7 @@ function listHtml(ctx, filters, selected = null) {
   const shown = found.slice(0, state.limit);
   const more = found.length > shown.length
     ? `<div class="row-buttons">${button(`show more (${found.length - shown.length})`, "tx-more")}</div>` : "";
-  if (wide()) return tableHtml(shown, filters, selected) + more;
+  if (wide()) return tableHtml(sorted(found).slice(0, state.limit), filters, selected) + more;
   const days = new Map();
   for (const t of shown) {
     if (!days.has(t.booked_on)) days.set(t.booked_on, []);
@@ -166,6 +220,15 @@ export const inputs = {
 };
 
 export const actions = {
+  // A heading: sort by it, or turn the order round if it's already sorted.
+  "tx-sort"(ctx, { key }) {
+    const column = COLUMNS.find((c) => c.key === key);
+    if (!column) return;
+    sort = sort.key === key ? { key, dir: sort.dir === "asc" ? "desc" : "asc" } : { key, dir: column.first };
+    store(SORT_KEY, sort);
+    state.limit = PAGE;
+    refreshList(ctx);
+  },
   "tx-more"(ctx) {
     state.limit += PAGE;
     refreshList(ctx);
@@ -183,3 +246,46 @@ export const actions = {
     }
   },
 };
+
+// Dragging a heading's right edge resizes its column. The first drag fixes
+// every column at its current width, so only the dragged one changes.
+document.addEventListener("pointerdown", (event) => {
+  const handle = event.target.closest(".col-resize");
+  if (!handle) return;
+  event.preventDefault();
+  const table = handle.closest("table");
+  const headings = [...table.querySelectorAll("thead th")];
+  let widths = headings.map((th) => Math.round(th.getBoundingClientRect().width));
+  if (!table.querySelector("colgroup")) {
+    table.insertAdjacentHTML("afterbegin", `<colgroup>${widths.map((w) => `<col style="width:${w}px">`).join("")}</colgroup>`);
+    table.classList.add("sized");
+  }
+  const cols = [...table.querySelectorAll("col")];
+  const index = Number(handle.dataset.col);
+  const startX = event.clientX;
+  const startWidth = widths[index];
+  handle.setPointerCapture(event.pointerId);
+  table.classList.add("resizing");
+  const move = (e) => {
+    widths[index] = Math.max(48, Math.round(startWidth + e.clientX - startX));
+    cols[index].style.width = `${widths[index]}px`;
+  };
+  const up = () => {
+    handle.removeEventListener("pointermove", move);
+    handle.removeEventListener("pointerup", up);
+    table.classList.remove("resizing");
+    store(WIDTHS_KEY, widths);
+  };
+  handle.addEventListener("pointermove", move);
+  handle.addEventListener("pointerup", up);
+});
+
+// Double-clicking an edge puts every column back to its natural width.
+document.addEventListener("dblclick", (event) => {
+  const handle = event.target.closest(".col-resize");
+  if (!handle) return;
+  const table = handle.closest("table");
+  table.querySelector("colgroup")?.remove();
+  table.classList.remove("sized");
+  store(WIDTHS_KEY, null);
+});

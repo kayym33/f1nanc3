@@ -435,6 +435,25 @@ nav a.on::before { content: ""; position: absolute; left: 0; right: 0; top: 0; h
 .sheet .total { color: var(--ink); font-weight: 700; }
 .sheet tfoot td, .sheet tfoot th { border-top: 1px solid var(--ink); font-weight: 700; color: var(--ink); }
 
+/* The list's table on a wide screen: sortable, resizable headings. */
+.tx-table th { padding: 0; }
+.tx-table th .sort {
+  appearance: none; border: 0; background: none; font: inherit; color: inherit; text-transform: inherit;
+  width: 100%; text-align: inherit; padding: 6px 14px 6px 8px; cursor: pointer; white-space: nowrap;
+}
+.tx-table th.num .sort { text-align: right; }
+.tx-table th .sort:hover { color: var(--ink); }
+.tx-table thead th.num { color: var(--muted); font-weight: 700; }
+.tx-table th.sorted, .tx-table th.sorted .sort { color: var(--ink); }
+.tx-table th .arrow { color: var(--accent-text); margin-left: 4px; font-size: 9px; }
+.tx-table .col-resize { position: absolute; top: 0; right: 0; bottom: 0; width: 8px; cursor: col-resize; z-index: 2; touch-action: none; }
+.tx-table .col-resize::after { content: ""; position: absolute; top: 25%; bottom: 25%; right: 0; border-left: 1px solid var(--rule); }
+.tx-table .col-resize:hover::after, .tx-table.resizing .col-resize::after { border-left: 2px solid var(--accent); top: 0; bottom: 0; }
+.tx-table.sized { table-layout: fixed; }
+.tx-table.sized td { overflow: hidden; text-overflow: ellipsis; }
+.tx-table.sized .who { width: auto; max-width: none; }
+.tx-table.resizing { cursor: col-resize; user-select: none; }
+
 /* The balance and pay still to come (overview). */
 .totals .note { display: block; margin-top: 2px; color: var(--muted); font-size: 11px; line-height: 1.3; }
 .balance { margin: 14px 0 0; border: 1px solid var(--rule); padding: 10px 12px; }
@@ -442,6 +461,7 @@ nav a.on::before { content: ""; position: absolute; left: 0; right: 0; top: 0; h
 .balance .big { color: var(--ink); font-size: 18px; font-weight: 700; font-variant-numeric: tabular-nums; }
 .balance .part { color: var(--muted); font-size: 12px; margin-left: 10px; white-space: nowrap; }
 .balance .hint { margin: 4px 0 0; }
+.balance .overdrawn { color: var(--warning); }
 .coming li.in .amount { color: var(--good); }
 .coming li small { color: var(--muted); }
 /* Settings: naming accounts. */
