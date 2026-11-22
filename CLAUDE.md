@@ -4,7 +4,7 @@ Guidance for Claude Code in this repository.
 
 ## Overview
 
-f1nanc3 is a personal finance web app (PWA) at https://finance.kaylamc.uk: bank statements in, spending by category out. It's a sibling of t1ld3 (`~/Projects/resonance`, whose `phone/` app this one is modelled on) and shares its Supabase project (`zuzpyrwoovdavbuqrqpx`) and accounts, but nothing else. Plain JS modules, no build step, no dependencies; GitHub Pages deploys `main` (`.github/workflows/pages.yml`).
+f1nanc3 is a personal finance web app (PWA) at https://f1nanc3.kaylamc.uk: bank statements in, spending by category out. It's a sibling of t1ld3 (`~/Projects/resonance`, whose `phone/` app this one is modelled on) and shares its Supabase project (`zuzpyrwoovdavbuqrqpx`) and accounts, but nothing else. Plain JS modules, no build step, no dependencies; GitHub Pages deploys `main` (`.github/workflows/pages.yml`).
 
 The owner wants nothing they won't use: **ask before adding any feature** that isn't in the plan below.
 

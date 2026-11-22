@@ -1,6 +1,6 @@
 name: Deploy
 
-# Tests, then publishes the app to GitHub Pages (finance.kaylamc.uk) on
+# Tests, then publishes the app to GitHub Pages (f1nanc3.kaylamc.uk) on
 # every push to main. Only the app's own files are published, not the
 # tests, tools or SQL. Turn Pages on once first: Settings -> Pages ->
 # Source: GitHub Actions.

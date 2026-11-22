@@ -1,7 +1,7 @@
 # f1nanc3
 
 Where your money goes, from your bank statements. A web app for the phone
-and the desktop browser, at <https://finance.kaylamc.uk>, in t1ld3's look
+and the desktop browser, at <https://f1nanc3.kaylamc.uk>, in t1ld3's look
 (bone and ink, monospace, one orange accent), signed in with your t1ld3
 account.
 
