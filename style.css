@@ -1,0 +1,328 @@
+/* t1ld3's look (bone and ink, monospace, square corners, one accent
+   colour), taken from t1ld3's phone/style.css. Day and night follow the
+   device. The accent is t1ld3's default orange. */
+:root {
+  --background: #E7E7DD;
+  --ink: #111210;
+  --ink-soft: #3B3C37;
+  --muted: #6B6C63;
+  --faint: #A6A79B;
+  --rule: #CBCBBF;
+  --hover: #D8D8CD;
+  --field: #F0F0E8;
+  --accent: #E8642C;
+  --accent-text: #B44718;
+  --warning: #B44718;
+  --mono: ui-monospace, "SF Mono", Menlo, "DejaVu Sans Mono", monospace;
+  color-scheme: light;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="day"]) {
+    --background: #121311;
+    --ink: #E7E7DD;
+    --ink-soft: #C6C6BA;
+    --muted: #8F9086;
+    --faint: #4D4E47;
+    --rule: #33342F;
+    --hover: #262722;
+    --field: #1B1C19;
+    --warning: #F08A5D;
+    --accent-text: #F08A5D;
+    color-scheme: dark;
+  }
+}
+
+:root[data-theme="night"] {
+  --background: #121311;
+  --ink: #E7E7DD;
+  --ink-soft: #C6C6BA;
+  --muted: #8F9086;
+  --faint: #4D4E47;
+  --rule: #33342F;
+  --hover: #262722;
+  --field: #1B1C19;
+  --warning: #F08A5D;
+  --accent-text: #F08A5D;
+  color-scheme: dark;
+}
+
+* { box-sizing: border-box; }
+
+html {
+  /* Below a short page the browser shows html's background, not body's.
+     index.html sets it from the system theme so the first paint isn't
+     white; this follows the app's own day/night choice once it loads, or
+     a day app on a dark phone shows black between the page and the tabs. */
+  background: var(--background);
+  -webkit-text-size-adjust: 100%;
+  /* No double-tap zoom, and no rubber-band bounce past the ends: an app's
+     pages stay put (pull-to-sync is the app's own, in gestures.js). */
+  touch-action: manipulation;
+  overscroll-behavior: none;
+}
+
+body {
+  margin: 0;
+  background: var(--background);
+  color: var(--ink-soft);
+  font: 15px/1.5 var(--mono);
+  /* Room for the tab bar, which reaches down past the home indicator. */
+  padding-bottom: calc(52px + env(safe-area-inset-bottom) / 2);
+  -webkit-tap-highlight-color: transparent;
+  overscroll-behavior: none;
+  /* Buttons and labels aren't text to select, and long-pressing a link
+     shouldn't pop up a preview. */
+  -webkit-user-select: none;
+  user-select: none;
+  -webkit-touch-callout: none;
+  transition: padding-bottom 200ms;
+}
+
+/* What you'd want to copy stays selectable. */
+input, textarea, .raw {
+  -webkit-user-select: text;
+  user-select: text;
+}
+
+a { color: inherit; }
+
+header {
+  position: sticky;
+  top: 0;
+  z-index: 2;
+  background: var(--background);
+  padding-top: env(safe-area-inset-top);
+}
+
+.noise {
+  margin: 0;
+  height: 2.2em;
+  overflow: hidden;
+  color: var(--faint);
+  font-size: 10px;
+  line-height: 1.1;
+  white-space: pre;
+  user-select: none;
+}
+
+.bar {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin: 0 16px;
+  padding: 6px 0 10px;
+  border-bottom: 1px solid var(--ink);
+}
+
+.trail {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+  font-size: 17px;
+  color: var(--ink-soft);
+}
+
+.trail a { text-decoration: none; color: var(--muted); }
+.trail .home { color: var(--ink); font-weight: 700; }
+.trail .home .one { color: var(--accent-text); }
+.trail .slash { color: var(--muted); margin: 0 0.4em; }
+
+.status { color: var(--warning); font-weight: 700; min-width: 1ch; }
+
+main { padding: 16px 16px 24px; }
+
+h1 { color: var(--ink); font-size: 22px; line-height: 1.25; margin: 0; }
+h2 {
+  color: var(--muted);
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  margin: 26px 0 8px;
+}
+h3 { color: var(--ink); font-size: 14px; margin: 16px 0 6px; }
+h3.now::after { content: "  ●"; color: var(--accent); }
+p { margin: 8px 0; }
+
+.muted { color: var(--muted); }
+.faint { color: var(--faint); }
+.faded { color: var(--muted); }
+.hint { color: var(--muted); font-size: 12px; font-style: italic; }
+.label { color: var(--muted); font-size: 11px; font-weight: 700; text-transform: uppercase; }
+.center { text-align: center; }
+.error { color: var(--warning); }
+.flash { border-left: 3px solid var(--accent); padding-left: 10px; color: var(--ink); }
+.art { color: var(--muted); margin: 16px 0; font: inherit; }
+.art.center { display: table; margin: 40px auto 8px; }
+code { font: inherit; color: var(--ink); }
+
+.today { color: var(--ink); font-size: 17px; margin-top: 4px; }
+.briefing { color: var(--ink-soft); }
+
+/* Buttons: outlined, or solid ink for the main action. */
+.button, .chip {
+  appearance: none;
+  font: inherit;
+  border-radius: 0;
+  border: 1px solid var(--ink);
+  background: transparent;
+  color: var(--ink);
+  font-weight: 700;
+  padding: 9px 16px;
+  min-height: 42px;
+}
+.button.solid { background: var(--ink); color: var(--background); }
+.button.small { border: 0; color: var(--muted); font-weight: 400; min-height: 0; padding: 4px 0; }
+.button.wide { width: 100%; margin-top: 8px; }
+.button:active, .chip:active { background: var(--hover); }
+.button.solid:active { background: var(--ink-soft); }
+.button:disabled { opacity: 0.6; }
+
+.row-buttons { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; margin: 12px 0; }
+.row-buttons.bottom { margin-top: 28px; }
+.spacer { flex: 1; }
+
+.section-head { display: flex; align-items: baseline; gap: 12px; }
+.section-head h2 { margin-right: 0; }
+.section-head .button.small { margin-left: auto; }
+
+.chips { display: flex; flex-wrap: wrap; gap: 6px; }
+.chip { border-color: var(--rule); color: var(--ink-soft); font-weight: 400; min-height: 36px; padding: 5px 12px; }
+.chip.on { background: var(--ink); border-color: var(--ink); color: var(--background); }
+.chip .swatch { display: inline-block; width: 12px; height: 12px; margin-right: 6px; vertical-align: -1px; box-shadow: inset 0 0 0 1px rgba(0, 0, 0, 0.18); }
+
+.picker { display: flex; align-items: center; gap: 4px; }
+.picker .muted { margin-right: 6px; }
+.picker .chip { min-width: 40px; border-color: var(--ink); }
+
+/* Fields: 16px text, or iOS zooms in on focus. */
+input, select, textarea {
+  font: 16px/1.4 var(--mono);
+  color: var(--ink);
+  background: var(--field);
+  border: 1px solid var(--ink);
+  border-radius: 0;
+  padding: 10px;
+  width: 100%;
+  -webkit-appearance: none;
+  appearance: none;
+}
+input::placeholder, textarea::placeholder { color: var(--muted); }
+select { min-height: 44px; }
+.select-row { display: flex; align-items: center; gap: 10px; position: relative; }
+/* Fields lose their native look, so the menu draws its own arrow. */
+.select-row .caret { position: absolute; right: 12px; pointer-events: none; color: var(--ink); }
+.select-row .swatch { width: 28px; height: 28px; flex: none; box-shadow: inset 0 0 0 1px rgba(0, 0, 0, 0.18); }
+.select-row select { flex: 1; min-width: 0; padding-right: 34px; }
+input:focus, select:focus, textarea:focus { outline: 2px solid var(--accent); outline-offset: -2px; }
+input[type="date"], input[type="time"] { min-height: 44px; }
+
+.search { margin: 4px 0 4px; }
+input[type="search"]::-webkit-search-cancel-button { display: none; }
+.add { margin: 8px 0 4px; }
+
+.editor label { display: block; margin: 14px 0 0; color: var(--muted); font-size: 12px; font-weight: 700; text-transform: uppercase; }
+.editor label .hint { display: block; text-transform: none; font-weight: 400; margin: 2px 0 4px; }
+.editor label input, .editor label select, .editor label textarea { margin-top: 4px; text-transform: none; font-weight: 400; }
+.pair { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+
+/* Lists */
+ul, ol { list-style: none; margin: 0; padding: 0; }
+
+.center-row { justify-content: center; }
+.sr { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); }
+
+/* The month, with steps to the one before and after. */
+.month-bar { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
+.month-bar h1 { flex: 1; text-align: center; }
+.step {
+  appearance: none; border: 1px solid var(--ink); background: none; color: var(--ink);
+  font: inherit; font-size: 20px; font-weight: 700; min-width: 44px; min-height: 44px; border-radius: 0;
+}
+.step:active { background: var(--hover); }
+.step.off { border-color: var(--rule); color: var(--faint); display: inline-flex; align-items: center; justify-content: center; }
+
+.totals { display: grid; grid-template-columns: repeat(3, 1fr); gap: 0; margin: 18px 0 0; border: 1px solid var(--ink); }
+.totals div { padding: 10px 12px; }
+.totals div + div { border-left: 1px solid var(--rule); }
+.totals dt { color: var(--muted); font-size: 11px; font-weight: 700; text-transform: uppercase; }
+.totals dd { margin: 2px 0 0; color: var(--ink); font-size: 17px; font-weight: 700; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+
+/* Spending by category: name, text bar, amount. */
+.meters li {
+  display: grid; grid-template-columns: minmax(7em, 1fr) auto minmax(6em, auto); align-items: center; gap: 10px;
+  padding: 9px 0; border-bottom: 1px solid var(--rule); cursor: pointer;
+}
+.meters li:active { background: var(--hover); }
+.meters .name { color: var(--ink); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.meters .meter { letter-spacing: -0.05em; white-space: nowrap; }
+.meters .amount { text-align: right; color: var(--ink); font-weight: 700; }
+.bar-fill { color: var(--accent); }
+.bar-empty { color: var(--faint); }
+
+.transactions li {
+  display: grid; grid-template-columns: 1fr auto; gap: 0 12px; align-items: baseline;
+  padding: 9px 0; border-bottom: 1px solid var(--rule); cursor: pointer;
+}
+.transactions li:active { background: var(--hover); }
+.transactions .who { color: var(--ink); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.transactions .amount { color: var(--ink); font-weight: 700; text-align: right; }
+.transactions .amount.in, .big-amount.in { color: var(--accent-text); }
+.transactions .what { color: var(--muted); font-size: 12px; }
+h3 + .transactions { border-top: 1px solid var(--ink); }
+
+.filters { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin: 8px 0 4px; }
+.filters select { font-size: 16px; }
+
+.big-amount { color: var(--ink); font-size: 28px; font-weight: 700; margin: 6px 0 10px; }
+.facts div { display: grid; grid-template-columns: 7em 1fr; gap: 12px; padding: 6px 0; border-bottom: 1px solid var(--rule); }
+.facts dt { color: var(--muted); }
+.facts dd { margin: 0; color: var(--ink); overflow-wrap: anywhere; }
+.remember { display: flex; align-items: center; gap: 10px; margin: 14px 0 0; color: var(--ink); }
+.remember input { width: 20px; height: 20px; padding: 0; accent-color: var(--ink); -webkit-appearance: checkbox; appearance: auto; }
+
+.file { display: block; text-align: center; line-height: 22px; margin: 16px 0 8px; }
+.how { list-style: decimal; padding-left: 1.6em; }
+.how li { margin: 4px 0; }
+
+nav {
+  position: fixed;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  z-index: 3;
+  display: flex;
+  background: var(--background);
+  border-top: 1px solid var(--ink);
+}
+nav[hidden] { display: none; }
+nav a {
+  flex: 1;
+  text-align: center;
+  text-decoration: none;
+  color: var(--muted);
+  /* The tabs reach the bottom of the screen, so the selected one is a
+     solid block down to the edge, as in iOS. Their text sits in the top
+     part, half the home indicator's space above it: clear of the
+     indicator without floating. */
+  padding: 14px 0 calc(12px + env(safe-area-inset-bottom) / 2);
+  font-size: 14px;
+}
+nav a.on { color: var(--background); background: var(--ink); font-weight: 700; position: relative; }
+/* The open tab carries a bar of the accent, or the flag's stripes. */
+nav a.on::before { content: ""; position: absolute; left: 0; right: 0; top: 0; height: 4px; background: var(--accent-bar, var(--accent)); }
+
+/* On a wide screen the app sits in a readable column. */
+@media (min-width: 720px) {
+  header .bar, main { max-width: 680px; margin-left: auto; margin-right: auto; }
+  main { padding-left: 0; padding-right: 0; }
+  nav { justify-content: center; }
+  nav a { flex: 0 1 170px; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  body { transition: none; }
+}

@@ -1,0 +1,15 @@
+{
+  "name": "f1nanc3",
+  "short_name": "f1nanc3",
+  "description": "where your money goes, from your bank statements",
+  "start_url": "./",
+  "scope": "./",
+  "display": "standalone",
+  "background_color": "#E7E7DD",
+  "theme_color": "#E7E7DD",
+  "icons": [
+    { "src": "icons/icon-192.png", "sizes": "192x192", "type": "image/png" },
+    { "src": "icons/icon-512.png", "sizes": "512x512", "type": "image/png" },
+    { "src": "icons/icon-512.png", "sizes": "512x512", "type": "image/png", "purpose": "maskable" }
+  ]
+}

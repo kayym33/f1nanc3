@@ -1,0 +1,111 @@
+// A stand-in for Supabase, for trying the app without a real account:
+// node tests/stub_server.mjs, then open
+// http://localhost:8765/?api=http://localhost:8766 and sign in with any
+// email and password. Serves the app on 8765 and a pretend API on 8766,
+// keeping data in memory. Only what f1nanc3 uses is implemented.
+import { readFile } from "node:fs/promises";
+import { createServer } from "node:http";
+import { extname, join, normalize } from "node:path";
+
+const ROOT = new URL("..", import.meta.url).pathname;
+const TYPES = { ".html": "text/html", ".js": "text/javascript", ".css": "text/css", ".png": "image/png", ".webmanifest": "application/manifest+json" };
+const transactions = new Map();
+const rules = new Map();
+
+createServer(async (request, response) => {
+  const path = new URL(request.url, "http://localhost").pathname;
+  const file = normalize(join(ROOT, path === "/" ? "index.html" : path));
+  if (!file.startsWith(ROOT)) return response.writeHead(403).end();
+  try {
+    const body = await readFile(file);
+    response.writeHead(200, { "Content-Type": TYPES[extname(file)] ?? "application/octet-stream" }).end(body);
+  } catch {
+    response.writeHead(404).end();
+  }
+}).listen(8765);
+
+const CORS = {
+  "Access-Control-Allow-Origin": "*",
+  "Access-Control-Allow-Headers": "*",
+  "Access-Control-Allow-Methods": "GET, POST, PATCH, DELETE, OPTIONS",
+};
+
+function json(response, status, data) {
+  response.writeHead(status, { ...CORS, "Content-Type": "application/json" }).end(data === undefined ? "" : JSON.stringify(data));
+}
+
+// PostgREST-style filters: column=eq.value / neq.value / gte.value.
+function matches(row, params) {
+  for (const [column, filter] of params) {
+    if (["select", "order", "limit", "offset", "on_conflict"].includes(column)) continue;
+    const [op, ...rest] = filter.split(".");
+    const value = rest.join(".");
+    const actual = String(row[column]);
+    if (op === "eq" && actual !== value) return false;
+    if (op === "neq" && actual === value) return false;
+    if (op === "gte" && actual < value) return false;
+  }
+  return true;
+}
+
+createServer(async (request, response) => {
+  if (request.method === "OPTIONS") return json(response, 204);
+  const url = new URL(request.url, "http://localhost");
+  let body = "";
+  for await (const chunk of request) body += chunk;
+  const data = body ? JSON.parse(body) : null;
+  const route = `${request.method} ${url.pathname}`;
+
+  if (route === "POST /auth/v1/token") {
+    return json(response, 200, {
+      access_token: "stub", refresh_token: "stub", expires_in: 3600,
+      user: { id: "00000000-0000-0000-0000-000000000001", email: data?.email ?? "you@example.com" },
+    });
+  }
+  if (route === "POST /auth/v1/logout") return json(response, 204);
+
+  if (route === "GET /rest/v1/fin_transactions") {
+    const rows = [...transactions.values()].filter((row) => matches(row, url.searchParams))
+      .sort((a, b) => b.booked_on.localeCompare(a.booked_on) || b.created_at - a.created_at);
+    const offset = Number(url.searchParams.get("offset") ?? 0);
+    return json(response, 200, rows.slice(offset, offset + Number(url.searchParams.get("limit") ?? 1000)));
+  }
+  if (route === "POST /rest/v1/fin_transactions") {
+    const added = [];
+    for (const row of data) {
+      if (transactions.has(row.id)) continue;
+      transactions.set(row.id, { ...row, created_at: Date.now() + added.length });
+      added.push({ id: row.id });
+    }
+    return json(response, 201, added);
+  }
+  if (route === "PATCH /rest/v1/fin_transactions") {
+    for (const row of transactions.values()) if (matches(row, url.searchParams)) Object.assign(row, data);
+    return json(response, 204);
+  }
+  if (route === "GET /rest/v1/fin_rules") {
+    return json(response, 200, [...rules].map(([merchant, category]) => ({ merchant, category })));
+  }
+  if (route === "POST /rest/v1/fin_rules") {
+    for (const row of data) rules.set(row.merchant, row.category);
+    return json(response, 201);
+  }
+  if (route === "POST /rest/v1/rpc/fin_mark_transfers") {
+    const all = [...transactions.values()];
+    let marked = 0;
+    for (const t of all) {
+      if (t.category_source !== "auto" || t.category === "transfers") continue;
+      const day = Date.parse(t.booked_on);
+      const pair = all.some((o) => o.account !== t.account && Number(o.amount) === -Number(t.amount)
+        && Math.abs(Date.parse(o.booked_on) - day) <= 86400000);
+      if (pair) {
+        t.category = "transfers";
+        marked++;
+      }
+    }
+    return json(response, 200, marked);
+  }
+  json(response, 404, { message: `stub has no ${route}` });
+}).listen(8766);
+
+console.log("app: http://localhost:8765/?api=http://localhost:8766");
