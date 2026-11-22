@@ -50,9 +50,11 @@ function median(values) {
 }
 
 // Every monthly payment, as [{merchant, name, kind, url, linkKnown,
-// monthly, yearly, last, next, ended, hidden, change, payments}], most
-// expensive first. `settings` is a Map of merchant -> {kind, url, hidden}
-// you've set (fin_subscriptions); they win over the built-in list.
+// monthly, yearly, last, next, ended, cancelled, chargedAfterCancel,
+// hidden, change, payments}], most expensive first. `settings` is a Map of
+// merchant -> {kind, url, hidden, cancelled_on} you've set
+// (fin_subscriptions); they win over the built-in list. One you've
+// cancelled has ended, unless it's charged you since.
 export function findSubscriptions(transactions, settings = new Map(), today = new Date()) {
   const todayIso = isoDate(today);
   const byMerchant = new Map();
@@ -92,7 +94,9 @@ export function findSubscriptions(transactions, settings = new Map(), today = ne
       yearly: Math.round(monthly * 12 * 100) / 100,
       last: latest.booked_on,
       next: nextMonth(latest.booked_on),
-      ended: days(latest.booked_on, todayIso) > ENDED_AFTER_DAYS,
+      ended: days(latest.booked_on, todayIso) > ENDED_AFTER_DAYS || Boolean(own.cancelled_on && latest.booked_on <= own.cancelled_on),
+      cancelled: own.cancelled_on ?? null,
+      chargedAfterCancel: Boolean(own.cancelled_on && latest.booked_on > own.cancelled_on),
       hidden: Boolean(own.hidden),
       change: priceChange(payments),
       payments,
