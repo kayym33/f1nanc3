@@ -1,7 +1,7 @@
 # f1nanc3
 
 Where your money goes, from your bank statements. A web app for the phone
-and the desktop browser, at <https://finance.kaylamc.uk>, in t1ld3's look
+and the desktop browser, at <https://f1nanc3.kaylamc.uk>, in t1ld3's look
 (bone and ink, monospace, one orange accent), signed in with your t1ld3
 account.
 
@@ -43,8 +43,8 @@ alert, subscriptions, month-by-month trends.
    project (SQL editor, or `npx supabase db query --remote -f
    supabase/schema.sql` from a linked folder). It's safe to run again.
 2. **Hosting.** Settings → Pages: Source **GitHub Actions**, custom
-   domain `finance.kaylamc.uk`, Enforce HTTPS. At LCN, add a CNAME record
-   `finance` → `kayym33.github.io`. Every push to `main` deploys.
+   domain `f1nanc3.kaylamc.uk`, Enforce HTTPS. At LCN, add a CNAME record
+   `f1nanc3` → `kayym33.github.io`. Every push to `main` deploys.
 3. **On the iPhone.** Open the address in Safari, sign in, then share →
    add to home screen.
 
