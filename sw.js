@@ -18,12 +18,15 @@ self.addEventListener("activate", (event) => {
 });
 
 // The network first, so a new version shows straight away; the cache
-// when offline. Requests to other sites (Supabase) go straight through.
+// when offline. "no-cache" makes the browser check with the server every
+// time instead of trusting GitHub Pages' 10-minute cache (an unchanged
+// file costs a tiny "not modified" reply), so a deploy shows on the next
+// open. Requests to other sites (Supabase) go straight through.
 self.addEventListener("fetch", (event) => {
   const url = new URL(event.request.url);
   if (event.request.method !== "GET" || url.origin !== location.origin) return;
   event.respondWith(
-    fetch(event.request)
+    fetch(event.request, { cache: "no-cache" })
       .then((response) => {
         if (response.ok) {
           const copy = response.clone();
