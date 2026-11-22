@@ -315,12 +315,94 @@ nav a.on { color: var(--background); background: var(--ink); font-weight: 700; p
 /* The open tab carries a bar of the accent, or the flag's stripes. */
 nav a.on::before { content: ""; position: absolute; left: 0; right: 0; top: 0; height: 4px; background: var(--accent-bar, var(--accent)); }
 
-/* On a wide screen the app sits in a readable column. */
-@media (min-width: 720px) {
-  header .bar, main { max-width: 680px; margin-left: auto; margin-right: auto; }
-  main { padding-left: 0; padding-right: 0; }
-  nav { justify-content: center; }
-  nav a { flex: 0 1 170px; }
+/* The phone shows the first 5 of the latest; a wide screen all of them. */
+.latest li:nth-child(n+6) { display: none; }
+
+/* Laptop and desktop (js/ui.js WIDE): the header across the top, the tabs
+   in a sidebar, the pages in columns, and denser controls. Capped at
+   1400px and centred on very wide screens. */
+@media (min-width: 900px) {
+  body {
+    display: grid;
+    grid-template-columns: 190px minmax(0, 1fr);
+    grid-template-rows: auto 1fr;
+    grid-template-areas: "head head" "side main";
+    max-width: 1400px;
+    min-height: 100vh;
+    margin: 0 auto;
+    padding-bottom: 0;
+    font-size: 14px;
+  }
+  header { grid-area: head; }
+  header .bar { margin: 0 24px; padding-bottom: 12px; }
+  .trail { font-size: 16px; }
+
+  nav {
+    grid-area: side;
+    position: sticky;
+    top: var(--header-height, 66px);
+    left: auto; right: auto; bottom: auto;
+    align-self: start;
+    flex-direction: column;
+    padding: 20px 0;
+    border-top: 0;
+    background: none;
+  }
+  nav a { flex: none; text-align: left; padding: 9px 24px; font-size: 14px; }
+  nav a.on::before { top: 0; bottom: 0; left: 0; right: auto; width: 4px; height: auto; background: var(--accent); }
+  nav a:not(.on):hover { color: var(--ink); background: var(--hover); }
+
+  main { grid-area: main; min-width: 0; padding: 20px 24px 48px 8px; }
+  main[data-view="import"], main[data-view="me"] { max-width: 760px; }
+  /* Signing in: no sidebar, a centred form. */
+  body:has(nav[hidden]) main { grid-column: 1 / -1; width: 100%; max-width: 440px; margin: 0 auto; padding: 20px 24px; }
+
+  h1 { font-size: 20px; }
+  h2 { margin-top: 20px; }
+  .button, .chip { min-height: 34px; padding: 6px 14px; }
+  .chip { min-height: 30px; padding: 3px 10px; }
+  .button:hover, .chip:hover, .step:hover { background: var(--hover); }
+  .button.solid:hover { background: var(--ink-soft); }
+  input, select, textarea { font-size: 14px; padding: 7px 10px; }
+  select { min-height: 36px; }
+  .step { min-width: 36px; min-height: 36px; font-size: 17px; }
+
+  .overview-head { display: grid; grid-template-columns: minmax(260px, 1fr) minmax(0, 1.5fr); gap: 32px; align-items: center; }
+  .totals { margin: 0; }
+  .totals dd { font-size: 16px; }
+  .columns { display: grid; grid-template-columns: 1fr 1fr; gap: 40px; align-items: start; }
+  .latest li:nth-child(n+6) { display: grid; }
+  .meters li, .transactions li { padding: 7px 0; }
+  .meters li:hover, .transactions li:hover { background: var(--hover); }
+
+  .split { display: grid; grid-template-columns: minmax(0, 1.8fr) minmax(300px, 1fr); gap: 28px; align-items: start; }
+  .split .search { margin-top: 0; }
+  .split-detail {
+    position: sticky; top: calc(var(--header-height, 66px) + 16px);
+    max-height: calc(100vh - var(--header-height, 66px) - 36px); overflow: auto;
+    border: 1px solid var(--ink); padding: 14px 18px 18px;
+  }
+  .split-detail h1 { font-size: 18px; }
+  .split-detail .big-amount { font-size: 24px; margin: 4px 0 8px; }
+  .split-detail .facts div { grid-template-columns: 6.5em 1fr; }
+
+  .file { display: inline-block; width: auto; padding: 8px 20px; }
+
+  .tx-table { width: 100%; border-collapse: collapse; margin-top: 8px; }
+  .tx-table th {
+    text-align: left; color: var(--muted); font-size: 11px; font-weight: 700; text-transform: uppercase;
+    padding: 6px 8px; border-bottom: 1px solid var(--ink); position: sticky; top: var(--header-height, 66px); z-index: 1; background: var(--background);
+  }
+  .tx-table td { padding: 6px 8px; border-bottom: 1px solid var(--rule); white-space: nowrap; }
+  .tx-table tr { cursor: pointer; }
+  .tx-table tbody tr:hover { background: var(--hover); }
+  .tx-table tbody tr.on, .tx-table tbody tr.on:hover { background: var(--ink); }
+  .tx-table tr.on td, .tx-table tr.on .num.in { color: var(--background); }
+  .tx-table .date { color: var(--muted); }
+  .tx-table .who { color: var(--ink); max-width: 0; width: 40%; overflow: hidden; text-overflow: ellipsis; }
+  .tx-table .what { color: var(--ink-soft); }
+  .tx-table .num { text-align: right; font-weight: 700; color: var(--ink); }
+  .tx-table .num.in { color: var(--accent-text); }
 }
 
 @media (prefers-reduced-motion: reduce) {

@@ -4,7 +4,7 @@
 // to by name (data-action="tx-more"). Modelled on t1ld3's phone app.
 import { AuthError, Cloud } from "./cloud.js";
 import { Finance } from "./data.js";
-import { esc } from "./ui.js";
+import { esc, WIDE, wide } from "./ui.js";
 import * as importer from "./views/importer.js";
 import * as me from "./views/me.js";
 import * as overview from "./views/overview.js";
@@ -35,6 +35,7 @@ const FORMS = handlers("forms");
 const INPUTS = handlers("inputs");
 
 let currentPath = null;
+let currentTab = null;
 let loadedAt = 0;
 const scrolls = new Map();
 
@@ -94,15 +95,21 @@ function render() {
   const fullPath = location.hash;
   const sameRoute = fullPath === currentPath;
   if (!sameRoute && currentPath !== null) scrolls.set(currentPath, window.scrollY);
-  const scroll = sameRoute ? window.scrollY : scrolls.get(fullPath) ?? 0;
+  // On a wide screen, choosing a transaction keeps the table where it was.
+  const stay = sameRoute || (wide() && current.tab === "/tx" && currentTab === "/tx");
+  const scroll = stay ? window.scrollY : scrolls.get(fullPath) ?? 0;
   const focus = focusedField();
   currentPath = fullPath;
+  currentTab = current.tab;
 
   document.querySelector(".trail").innerHTML = crumbHtml(result.crumbs);
   document.querySelector("nav").hidden = !signedIn;
   for (const link of document.querySelectorAll("nav a")) {
     link.classList.toggle("on", signedIn && link.getAttribute("href") === `#${current.tab}`);
   }
+  main.dataset.view = signedIn ? current.name : "sign-in";
+  // Sticky things on a wide screen sit just under the header.
+  document.documentElement.style.setProperty("--header-height", `${document.querySelector("header").offsetHeight}px`);
   main.innerHTML = result.html;
   window.scrollTo(0, scroll);
   if (focus) {
@@ -181,6 +188,8 @@ document.addEventListener("visibilitychange", () => {
   if (document.visibilityState === "visible" && Date.now() - loadedAt > STALE_MS) load();
 });
 matchMedia("(prefers-color-scheme: dark)").addEventListener("change", fillNoise);
+// Crossing between phone and desktop widths changes some views' markup.
+matchMedia(WIDE).addEventListener("change", () => render());
 window.addEventListener("unhandledrejection", (event) => {
   if (event.reason instanceof AuthError) render();
 });
