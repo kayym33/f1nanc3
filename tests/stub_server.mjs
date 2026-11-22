@@ -11,6 +11,8 @@ const ROOT = new URL("..", import.meta.url).pathname;
 const TYPES = { ".html": "text/html", ".js": "text/javascript", ".css": "text/css", ".png": "image/png", ".webmanifest": "application/manifest+json" };
 const transactions = new Map();
 const rules = new Map();
+// Account names: account -> {name, kind}.
+const accountNames = new Map();
 // Subscription choices: merchant -> {kind, url, hidden}.
 const subscriptionSettings = new Map();
 // The pretend bank connection: [{id, bank, status, valid_until, accounts, ...}].
@@ -87,6 +89,13 @@ createServer(async (request, response) => {
   if (route === "PATCH /rest/v1/fin_transactions") {
     for (const row of transactions.values()) if (matches(row, url.searchParams)) Object.assign(row, data);
     return json(response, 204);
+  }
+  if (route === "GET /rest/v1/fin_accounts") {
+    return json(response, 200, [...accountNames].map(([account, row]) => ({ account, ...row })));
+  }
+  if (route === "POST /rest/v1/fin_accounts") {
+    for (const { account, name, kind } of data) accountNames.set(account, { name, kind });
+    return json(response, 201);
   }
   if (route === "GET /rest/v1/fin_subscriptions") {
     return json(response, 200, [...subscriptionSettings].map(([merchant, row]) => ({ merchant, ...row })));

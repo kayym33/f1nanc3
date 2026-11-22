@@ -10,6 +10,8 @@ import { action, button, esc, heading, notReady, wide } from "../ui.js";
 const PAGE = 150;
 
 const state = { search: "", limit: PAGE };
+// Your names for accounts ("current" for "…5231"), set on each render.
+let nameOf = (account) => account;
 
 export function transactionRow(t) {
   const money = t.amount > 0 ? "in" : "";
@@ -48,7 +50,7 @@ function tableHtml(shown, filters, selected) {
           <td class="who">${esc(displayName(t.merchant))}</td>
           <td class="what">${esc(t.category)}</td>
           <td class="num ${t.amount > 0 ? "in" : ""}">${pounds(t.amount, { sign: t.amount > 0 })}</td>
-          <td class="muted">${esc(t.account)}</td>
+          <td class="muted">${esc(nameOf(t.account))}</td>
         </tr>`).join("")}
       </tbody>
     </table>`;
@@ -81,6 +83,7 @@ function select(name, label, options, selected) {
 }
 
 export function render(ctx, params) {
+  nameOf = (account) => ctx.finance.accountName(account);
   const waiting = notReady(ctx.finance);
   if (waiting) return { crumbs: ["transactions"], html: waiting };
   const filters = { month: params.month ?? "", category: params.category ?? "" };
@@ -110,6 +113,7 @@ export function render(ctx, params) {
 
 // On a wide screen, the table with this transaction beside it.
 export function renderOne(ctx, params) {
+  nameOf = (account) => ctx.finance.accountName(account);
   if (wide()) return render(ctx, params);
   const waiting = notReady(ctx.finance);
   if (waiting) return { crumbs: [["transactions", "/tx"]], html: waiting };
@@ -128,7 +132,7 @@ function detailHtml(t) {
       <p class="big-amount ${t.amount > 0 ? "in" : ""}">${pounds(t.amount, { sign: true })}</p>
       <dl class="facts">
         <div><dt>date</dt><dd>${esc(dayLabel(t.booked_on))} ${esc(t.booked_on.slice(0, 4))}</dd></div>
-        <div><dt>account</dt><dd>${esc(t.account)}</dd></div>
+        <div><dt>account</dt><dd>${esc(nameOf(t.account))}${nameOf(t.account) !== t.account ? ` <span class="muted">${esc(t.account)}</span>` : ""}</dd></div>
         ${t.type ? `<div><dt>type</dt><dd>${esc(t.type)}</dd></div>` : ""}
         <div><dt>statement</dt><dd class="raw">${esc(t.description)}</dd></div>
       </dl>

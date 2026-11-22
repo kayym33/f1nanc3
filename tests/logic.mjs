@@ -9,6 +9,8 @@ import { parseAmount, parseDate, parseRows, readStatement } from "../js/csv.js";
 import { allocateRows, bandTop, riverBands, riverLayout } from "../js/flow.js";
 import { addMonths, pounds, sum, windowMonths, windowStart } from "../js/money.js";
 import { monthSummary } from "../js/summary.js";
+import { latestBalances } from "../js/balances.js";
+import { expectedIncome, regularIncome } from "../js/income.js";
 import { categoryGrid, gridCsv, inOut, months as trendMonths, niceCeiling, pace } from "../js/trends.js";
 import { longestWithout, regularPayments, yearStats } from "../js/wrapped.js";
 
@@ -385,6 +387,36 @@ await check("bill days and the month's projection", () => {
   const steps = projection(700, marks, 22, 30);
   // The late one comes out "today"; then rent on the 28th, Sky on the 30th.
   assert.deepEqual(steps, [[22, 700], [22, 700], [22, 710], [28, 710], [28, 1360], [30, 1360], [30, 1456.95], [30, 1456.95]]);
+});
+
+await check("pay that's still to come", () => {
+  const t = (booked_on, amount, merchant, category = "income") => ({ booked_on, amount, merchant, category });
+  const list = [
+    t("2026-08-28", 1850, "employer ltd"), t("2026-09-26", 1850, "employer ltd"), t("2026-10-28", 1900, "employer ltd"),
+    // Mum's £41 every month on the 3rd: regular income too, already in.
+    t("2026-09-03", 41, "from a/c …7777"), t("2026-10-03", 41, "from a/c …7777"), t("2026-11-03", 41, "from a/c …7777"),
+    // A one-off refund isn't regular.
+    t("2026-11-10", 20, "argos"),
+    // Transfers never count.
+    t("2026-09-01", 300, "from a/c …1111", "transfers"), t("2026-10-01", 300, "from a/c …1111", "transfers"), t("2026-11-01", 300, "from a/c …1111", "transfers"),
+  ];
+  assert.deepEqual(regularIncome(list).map((s) => s.name), ["Employer Ltd", "From A/c …7777"]);
+  // The typical recent amount: the middle of the last three (1850, 1850, 1900).
+  assert.deepEqual(expectedIncome(list, new Date(2026, 10, 22)), [{ name: "Employer Ltd", amount: 1850, day: 28 }]);
+  // Once it's in, nothing's expected.
+  assert.deepEqual(expectedIncome([...list, t("2026-11-27", 1900, "employer ltd")], new Date(2026, 10, 28)), []);
+  // Late: due the 28th but it's the 30th and nothing yet: due "today".
+  assert.deepEqual(expectedIncome(list, new Date(2026, 10, 30)), [{ name: "Employer Ltd", amount: 1850, day: 30 }]);
+});
+
+await check("latest balances", () => {
+  const t = (account, booked_on, amount, balance) => ({ account, booked_on, amount, balance });
+  // Stored out of order on the last day; the chain says 470 is last.
+  const balances = latestBalances([
+    t("…5231", "2026-11-19", -10, 520), t("…5231", "2026-11-20", -20, 470), t("…5231", "2026-11-20", -30, 490),
+    t("…9999", "2026-11-18", 300, 3500), t("…0000", "2026-11-18", -5, null),
+  ]);
+  assert.deepEqual(balances, [{ account: "…5231", balance: 470, date: "2026-11-20" }, { account: "…9999", balance: 3500, date: "2026-11-18" }]);
 });
 
 if (failures) {

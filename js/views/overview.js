@@ -1,12 +1,33 @@
 // A month at a glance: money in and out, spending by category, and the
 // latest transactions.
-import { addMonths, monthLabel, monthOf, pounds, windowMonths } from "../money.js";
+import { latestBalances } from "../balances.js";
+import { expectedIncome } from "../income.js";
+import { addMonths, dayLabel, monthLabel, monthOf, pounds, windowMonths } from "../money.js";
 import { monthSummary } from "../summary.js";
 import { action, bar, button, esc, heading, notReady } from "../ui.js";
 import { transactionRow } from "./transactions.js";
 
 // The phone shows the first 5 of these (style.css); a wide screen all.
 const LATEST = 12;
+
+// What's in your accounts, as of each one's latest transaction: money to
+// spend and savings apart, each account named as you named it.
+function balanceHtml(ctx) {
+  const balances = latestBalances(ctx.finance.transactions);
+  if (!balances.length) return "";
+  const group = (kind) => balances.filter((b) => ctx.finance.accountKind(b.account) === kind);
+  const total = (list) => Math.round(list.reduce((sum, b) => sum + b.balance, 0) * 100) / 100;
+  const spend = group("spending");
+  const saved = group("savings");
+  const latest = balances.map((b) => b.date).sort().at(-1);
+  const parts = (list) => list.map((b) => `<span class="part">${esc(ctx.finance.accountName(b.account))} ${esc(pounds(b.balance))}</span>`).join("");
+  return `
+    <div class="balance">
+      ${spend.length ? `<div><span class="big">${esc(pounds(total(spend)))}</span> to spend ${parts(spend)}</div>` : ""}
+      ${saved.length ? `<div><span class="big">${esc(pounds(total(saved)))}</span> saved ${parts(saved)}</div>` : ""}
+      <p class="hint">balances as of ${esc(dayLabel(latest))}, from your last import${ctx.finance.accounts.size ? "" : " · name your accounts in settings ⚙"}</p>
+    </div>`;
+}
 
 export function render(ctx, { month }) {
   const shown = month ?? monthOf(new Date());
@@ -25,6 +46,11 @@ export function render(ctx, { month }) {
   const older = addMonths(shown, -1);
   const newer = addMonths(shown, 1);
   const { income, spending, net, categories } = monthSummary(ctx.finance.transactions, shown);
+  // This month, before payday: the pay still to come.
+  const current = shown === monthOf(new Date());
+  const pay = current ? expectedIncome(ctx.finance.transactions) : [];
+  const payTotal = pay.reduce((total, p) => total + p.amount, 0);
+  const ordinal = (day) => `${day}${[11, 12, 13].includes(day) ? "th" : ["th", "st", "nd", "rd"][day % 10] ?? "th"}`;
   const biggest = Math.max(...categories.map((row) => row.total), 0);
   const latest = ctx.finance.transactions.filter((t) => t.booked_on.startsWith(shown)).slice(0, LATEST);
   const step = (target, label) => (months.includes(target)
@@ -37,11 +63,12 @@ export function render(ctx, { month }) {
       <div class="overview-head">
         <div class="month-bar">${step(older, "‹")}<h1>${esc(monthLabel(shown))}</h1>${step(newer, "›")}</div>
         <dl class="totals">
-          <div><dt>in</dt><dd>${pounds(income)}</dd></div>
+          <div><dt>in</dt><dd>${pounds(income)}</dd>${payTotal ? `<span class="note">+ pay ~${esc(pounds(Math.round(payTotal)).replace(".00", ""))} due ${pay.length === 1 ? `the ${ordinal(pay[0].day)}` : "soon"}</span>` : ""}</div>
           <div><dt>out</dt><dd>${pounds(spending)}</dd></div>
-          <div><dt>left</dt><dd>${pounds(net, { sign: true })}</dd></div>
+          <div><dt>left</dt><dd>${pounds(net, { sign: true })}</dd>${payTotal ? `<span class="note">about ${esc(pounds(Math.round(net + payTotal), { sign: true }).replace(".00", ""))} after pay</span>` : ""}</div>
         </dl>
       </div>
+      ${current ? balanceHtml(ctx) : ""}
       <button type="button" class="wrapped-link" ${action("go", { to: "/wrapped" })}><span>✶</span> your year, wrapped <span class="go">›</span></button>
       <div class="columns">
         <section>
