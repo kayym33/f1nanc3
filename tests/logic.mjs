@@ -451,6 +451,8 @@ await check("the budget", () => {
   const t = (booked_on, amount, category, merchant = category) => ({ booked_on, amount, category, merchant });
   const today = new Date(2026, 10, 22);
   assert.deepEqual(fullMonths(today), ["2026-05", "2026-06", "2026-07", "2026-08", "2026-09", "2026-10"]);
+  // Since a new job: only the months from then.
+  assert.deepEqual(fullMonths(today, 6, "2026-08"), ["2026-08", "2026-09", "2026-10"]);
   const list = [];
   for (const [i, month] of ["2026-05", "2026-06", "2026-07", "2026-08", "2026-09", "2026-10"].entries()) {
     list.push(t(`${month}-03`, -200 - i * 10, "groceries", "tesco"));
@@ -463,6 +465,8 @@ await check("the budget", () => {
   const fixed = new Set(["netflix", "to a/c …5555"]);
   const typical = typicalSpending(list, fixed, today);
   assert.equal(typical.groceries, 225);
+  // From August only: groceries were 230, 240, 250 there.
+  assert.equal(typicalSpending(list, fixed, today, "2026-08").groceries, 240);
   assert.equal(typical["eating out"], 100);
   // Subscriptions and rent are fixed, so not in the flexible categories.
   assert.equal(typical.entertainment, 0);
