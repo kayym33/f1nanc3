@@ -1,5 +1,6 @@
 // The account, and the sign-in screen.
-import { button, esc, heading } from "../ui.js";
+import { setTheme, theme, THEMES } from "../theme.js";
+import { action, button, esc, heading } from "../ui.js";
 
 export function render(ctx) {
   const count = ctx.finance.transactions.length;
@@ -12,11 +13,17 @@ export function render(ctx) {
       <div class="row-buttons">${button("reload", "reload")}${button("sign out", "me-sign-out")}</div>
       ${heading("data")}
       <p>${count} transactions, kept for the current month and the 12 before it.</p>
-      <p class="hint">day and night follow your device's light and dark mode</p>`,
+      ${heading("theme")}
+      <div class="chips">${THEMES.map((choice) => `<button type="button" class="chip${choice === theme() ? " on" : ""}" ${action("me-theme", { value: choice })}>${choice}</button>`).join("")}</div>
+      <p class="hint">auto follows this device's light and dark mode; the choice is kept on this device only</p>`,
   };
 }
 
 export const actions = {
+  "me-theme"(ctx, { value }) {
+    setTheme(value);
+    ctx.render();
+  },
   async "me-sign-out"(ctx) {
     if (!confirm("sign out of f1nanc3 here?")) return;
     await ctx.cloud.signOut();

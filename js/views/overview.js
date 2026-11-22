@@ -5,7 +5,8 @@ import { monthSummary } from "../summary.js";
 import { action, bar, button, esc, heading, notReady } from "../ui.js";
 import { transactionRow } from "./transactions.js";
 
-const LATEST = 5;
+// The phone shows the first 5 of these (style.css); a wide screen all.
+const LATEST = 12;
 
 export function render(ctx, { month }) {
   const shown = month ?? monthOf(new Date());
@@ -33,20 +34,29 @@ export function render(ctx, { month }) {
   return {
     crumbs: shown === monthOf(new Date()) ? [] : [monthLabel(shown)],
     html: `
-      <div class="month-bar">${step(older, "‹")}<h1>${esc(monthLabel(shown))}</h1>${step(newer, "›")}</div>
-      <dl class="totals">
-        <div><dt>in</dt><dd>${pounds(income)}</dd></div>
-        <div><dt>out</dt><dd>${pounds(spending)}</dd></div>
-        <div><dt>left</dt><dd>${pounds(net, { sign: true })}</dd></div>
-      </dl>
-      ${heading("spending")}
-      ${categories.length ? `<ul class="meters">${categories.map((row) => `
-        <li ${action("go", { to: `/tx?month=${shown}&category=${row.category}` })}>
-          <span class="name">${esc(row.category)}</span>
-          <span class="meter">${bar(biggest > 0 ? row.total / biggest : 0)}</span>
-          <span class="amount">${pounds(row.total)}</span>
-        </li>`).join("")}</ul>` : `<p class="muted">nothing spent this month</p>`}
-      <div class="section-head">${heading("latest")}${button("all ›", "go", { to: `/tx?month=${shown}` }, { small: true })}</div>
-      ${latest.length ? `<ul class="transactions">${latest.map(transactionRow).join("")}</ul>` : `<p class="muted">none this month</p>`}`,
+      <div class="overview-head">
+        <div class="month-bar">${step(older, "‹")}<h1>${esc(monthLabel(shown))}</h1>${step(newer, "›")}</div>
+        <dl class="totals">
+          <div><dt>in</dt><dd>${pounds(income)}</dd></div>
+          <div><dt>out</dt><dd>${pounds(spending)}</dd></div>
+          <div><dt>left</dt><dd>${pounds(net, { sign: true })}</dd></div>
+        </dl>
+      </div>
+      <button type="button" class="wrapped-link" ${action("go", { to: "/wrapped" })}><span>✶</span> your year, wrapped <span class="go">›</span></button>
+      <div class="columns">
+        <section>
+          <div class="section-head">${heading("spending")}${button("as a river ›", "go", { to: shown === monthOf(new Date()) ? "/river" : `/river/${shown}` }, { small: true })}</div>
+          ${categories.length ? `<ul class="meters">${categories.map((row) => `
+            <li ${action("go", { to: `/tx?month=${shown}&category=${row.category}` })}>
+              <span class="name">${esc(row.category)}</span>
+              <span class="meter">${bar(biggest > 0 ? row.total / biggest : 0)}</span>
+              <span class="amount">${pounds(row.total)}</span>
+            </li>`).join("")}</ul>` : `<p class="muted">nothing spent this month</p>`}
+        </section>
+        <section>
+          <div class="section-head">${heading("latest")}${button("all ›", "go", { to: `/tx?month=${shown}` }, { small: true })}</div>
+          ${latest.length ? `<ul class="transactions latest">${latest.map(transactionRow).join("")}</ul>` : `<p class="muted">none this month</p>`}
+        </section>
+      </div>`,
   };
 }

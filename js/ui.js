@@ -37,3 +37,7 @@ export function notReady(finance) {
   if (finance.state !== "ready") return `<p class="muted">loading...</p>`;
   return null;
 }
+
+// A laptop or desktop: the sidebar layout (style.css uses the same width).
+export const WIDE = "(min-width: 900px)";
+export const wide = () => matchMedia(WIDE).matches;
