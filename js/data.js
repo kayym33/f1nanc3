@@ -1,6 +1,7 @@
 // The signed-in user's transactions and category rules, loaded from
 // Supabase and kept in memory while the app is open. Nothing is stored on
 // the device itself: bank data stays on the server, behind the sign-in.
+import { notAlreadyThere } from "./bank.js";
 import { guessCategory, merchantOf } from "./categories.js";
 import { windowStart } from "./money.js";
 
@@ -9,6 +10,8 @@ export class Finance {
     this.cloud = cloud;
     this.transactions = [];
     this.rules = new Map();
+    // The latest bank connection (fin_bank_links), or null.
+    this.link = null;
     // idle, loading, ready or error.
     this.state = "idle";
     this.error = null;
@@ -27,6 +30,7 @@ export class Finance {
       const [transactions, rules] = await Promise.all([
         this.fetchTransactions(),
         this.cloud.selectAll("fin_rules", { select: "merchant,category" }),
+        this.loadLink(),
       ]);
       this.transactions = transactions;
       this.rules = new Map(rules.map((rule) => [rule.merchant, rule.category]));
@@ -39,6 +43,28 @@ export class Finance {
       this.error = error.message ?? String(error);
     }
     this.changed();
+  }
+
+  // The latest bank connection that isn't disconnected. Its table may not
+  // exist yet on an older server; then there's simply no connection.
+  async loadLink() {
+    try {
+      const rows = await this.cloud.selectAll("fin_bank_links", {
+        select: "id,bank,status,valid_until,accounts,last_synced_at,last_error,created_at",
+        status: "in.(active,expired)",
+        order: "created_at.desc",
+      });
+      this.link = rows[0] ?? null;
+    } catch {
+      this.link = null;
+    }
+  }
+
+  // Asks the server to fetch from the bank now; returns how many were new.
+  async syncBank() {
+    const { added } = await this.cloud.callFunction("bank", { action: "sync" });
+    await this.load();
+    return added;
   }
 
   async fetchTransactions() {
@@ -115,7 +141,12 @@ export class Finance {
   // as they are. Returns {added, already, tooOld}.
   async importStatement(transactions) {
     const start = windowStart();
-    const recent = transactions.filter((t) => t.booked_on >= start);
+    // Ones the bank connection already brought in (same account, date and
+    // amount) are left out, so connecting and importing don't double up.
+    const recent = notAlreadyThere(
+      transactions.filter((t) => t.booked_on >= start),
+      this.transactions.filter((t) => t.source === "bank"),
+    );
     const rows = recent.map((t) => {
       const { category, source } = guessCategory(t, this.rules);
       return { ...t, category, category_source: source, source: "csv" };
@@ -123,7 +154,8 @@ export class Finance {
     const added = await this.cloud.insertNew("fin_transactions", rows, "user_id,id");
     if (added) await this.cloud.rpc("fin_mark_transfers");
     await this.load();
-    return { added, already: rows.length - added, tooOld: transactions.length - recent.length };
+    const tooOld = transactions.filter((t) => t.booked_on < start).length;
+    return { added, already: transactions.length - tooOld - added, tooOld };
   }
 
   // Puts one transaction in a category. With `remember`, every payment to

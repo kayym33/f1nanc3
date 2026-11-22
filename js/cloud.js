@@ -85,6 +85,9 @@ export class Cloud {
       if (response.status === 401 || ([400, 403].includes(response.status) && path.includes("/auth/"))) {
         throw new AuthError(message);
       }
+      if (response.status === 404 && path.startsWith("/functions/")) {
+        throw new CloudError("the bank connection isn't set up on the server yet");
+      }
       if (response.status === 404 && path.includes("fin_")) {
         throw new CloudError("f1nanc3's tables aren't set up on the server yet (supabase/schema.sql)");
       }
@@ -207,6 +210,11 @@ export class Cloud {
     await this.request("DELETE", `/rest/v1/${table}?${params}`, undefined, {
       headers: { Prefer: "return=minimal" },
     });
+  }
+
+  // POST to one of f1nanc3's server functions (supabase/functions).
+  async callFunction(name, body) {
+    return this.request("POST", `/functions/v1/${name}`, body);
   }
 
   async rpc(name, args = {}) {

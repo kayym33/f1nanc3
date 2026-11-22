@@ -104,3 +104,71 @@ select cron.schedule(
   where booked_on < (date_trunc('month', now() at time zone 'Europe/London') - interval '12 months')::date;
   $$
 );
+
+-- The bank connection (Enable Banking), one row per time you connect.
+-- Only the server functions (supabase/functions) write it, using the
+-- service role; you can read your own rows to see the connection's state.
+-- The session id is useless without the app's private key, which only
+-- the functions hold.
+create table if not exists public.fin_bank_links (
+  id uuid primary key default gen_random_uuid(),
+  user_id uuid not null references auth.users (id) on delete cascade,
+  bank text not null,
+  -- pending: sent to the bank to approve; active: fetching daily;
+  -- disconnected: stopped by you; expired: the bank's approval ran out.
+  status text not null default 'pending' check (status in ('pending', 'active', 'disconnected', 'expired')),
+  state text,
+  session_id text,
+  valid_until timestamptz,
+  -- [{uid, account: "…1234", name}]
+  accounts jsonb not null default '[]',
+  last_synced_at timestamptz,
+  last_error text,
+  created_at timestamptz not null default now()
+);
+
+create index if not exists fin_bank_links_user on public.fin_bank_links (user_id, created_at desc);
+
+alter table public.fin_bank_links enable row level security;
+
+drop policy if exists "Users see their own bank links" on public.fin_bank_links;
+create policy "Users see their own bank links"
+  on public.fin_bank_links
+  for select
+  to authenticated
+  using (user_id = (select auth.uid()));
+
+revoke all on public.fin_bank_links from anon, authenticated;
+grant select (id, bank, status, valid_until, accounts, last_synced_at, last_error, created_at)
+  on public.fin_bank_links to authenticated;
+
+-- fin_mark_transfers for one user, for the server's daily fetch (which
+-- runs as the service role, so auth.uid() is empty there).
+create or replace function public.fin_mark_transfers_for(target uuid)
+returns integer
+language plpgsql
+security definer
+set search_path = ''
+as $$
+declare
+  marked integer;
+begin
+  update public.fin_transactions t
+  set category = 'transfers', category_source = 'auto'
+  where t.user_id = target
+    and t.category_source = 'auto'
+    and t.category <> 'transfers'
+    and exists (
+      select 1 from public.fin_transactions other
+      where other.user_id = t.user_id
+        and other.account <> t.account
+        and other.amount = -t.amount
+        and other.booked_on between t.booked_on - 1 and t.booked_on + 1
+    );
+  get diagnostics marked = row_count;
+  return marked;
+end;
+$$;
+
+revoke all on function public.fin_mark_transfers_for(uuid) from public, anon, authenticated;
+grant execute on function public.fin_mark_transfers_for(uuid) to service_role;

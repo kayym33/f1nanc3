@@ -114,6 +114,11 @@ function render() {
     link.classList.toggle("on", signedIn && link.getAttribute("href") === `#${current.tab}`);
   }
   main.dataset.view = signedIn ? current.name : "sign-in";
+  // While the bank connection needs you, every page says so (not wrapped).
+  const banner = signedIn && current.name !== "wrapped" ? me.bankBanner(finance) : null;
+  const bannerBox = document.querySelector(".banner");
+  bannerBox.hidden = !banner;
+  bannerBox.innerHTML = banner ?? "";
   // Sticky things on a wide screen sit just under the header.
   document.documentElement.style.setProperty("--header-height", `${document.querySelector("header").offsetHeight}px`);
   main.innerHTML = result.html;
@@ -206,5 +211,14 @@ history.scrollRestoration = "manual";
 if ("serviceWorker" in navigator) navigator.serviceWorker.register("./sw.js").catch(() => {});
 applyTheme();
 fillNoise();
-render();
-load();
+// Back from approving at the bank: ?code=...&state=... (or ?error=...).
+const back = new URLSearchParams(location.search);
+if (cloud.signedIn && (back.has("code") || back.has("error")) && back.has("state")) {
+  const keep = new URLSearchParams([...back].filter(([name]) => name === "api"));
+  history.replaceState(null, "", `${location.pathname}${keep.size ? `?${keep}` : ""}#/me`);
+  render();
+  me.finishConnecting(ctx, back);
+} else {
+  render();
+  load();
+}

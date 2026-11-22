@@ -1,6 +1,7 @@
 // Checks for the parts with no UI: reading statements, merchants,
 // category guesses and the 13-month window. Run with: node tests/logic.mjs
 import assert from "node:assert/strict";
+import { accountLast4, bankRow, describe, notAlreadyThere, signedAmount } from "../js/bank.js";
 import { guessCategory, merchantOf } from "../js/categories.js";
 import { parseAmount, parseDate, parseRows, readStatement } from "../js/csv.js";
 import { allocateRows, bandTop, riverBands, riverLayout } from "../js/flow.js";
@@ -240,6 +241,41 @@ await check("longest gap and regular payments", () => {
   ]);
   assert.deepEqual(regular.map((r) => r.merchant), ["octopus"]);
   assert.equal(regular[0].typical, 86);
+});
+
+await check("bank transactions", async () => {
+  const card = {
+    entry_reference: "ref-1", status: "BOOK", credit_debit_indicator: "DBIT", booking_date: "2026-11-20",
+    transaction_amount: { amount: "4.50", currency: "GBP" }, creditor: { name: "MCDONALDS 123" },
+    remittance_information: ["MCDONALDS 123", "EDINBURGH GB"],
+  };
+  assert.equal(signedAmount(card), -4.5);
+  assert.equal(signedAmount({ ...card, credit_debit_indicator: "CRDT" }), 4.5);
+  // Some banks send a sign anyway; direction still comes from the indicator.
+  assert.equal(signedAmount({ ...card, transaction_amount: { amount: "-4.50" } }), -4.5);
+  assert.equal(describe(card), "MCDONALDS 123 , EDINBURGH GB");
+  const row = await bankRow(card, "…5231");
+  assert.equal(row.amount, -4.5);
+  assert.equal(row.merchant, "mcdonalds");
+  assert.equal(row.category, "eating out");
+  assert.equal(row.source, "bank");
+  assert.equal(row.booked_on, "2026-11-20");
+  // The same bank reference always gives the same id.
+  assert.equal((await bankRow(card, "…5231")).id, row.id);
+  assert.notEqual((await bankRow(card, "…9999")).id, row.id);
+  assert.equal(await bankRow({ ...card, status: "PDNG" }, "…5231"), null);
+  assert.equal(await bankRow({ ...card, transaction_amount: { amount: "4.50", currency: "EUR" } }, "…5231"), null);
+  assert.equal(accountLast4({ account_id: { iban: "GB33NWBK83200012345231" } }), "…5231");
+  assert.equal(accountLast4({ account_id: { other: { identification: "83200012345231", scheme_name: "BBAN" } } }), "…5231");
+  assert.equal(accountLast4({ all_account_ids: [{ identification: "832000-12345231" }] }), "…5231");
+});
+
+await check("bank and CSV transactions don't double up", () => {
+  const row = (booked_on, amount, account = "…5231") => ({ account, booked_on, amount });
+  const stored = [row("2026-11-20", -1.67), row("2026-11-20", -1.67), row("2026-11-21", -30)];
+  const incoming = [row("2026-11-20", -1.67), row("2026-11-20", -1.67), row("2026-11-20", -1.67), row("2026-11-21", -30), row("2026-11-21", -30, "…9999")];
+  // Two coffees were already there, a third is new; the other account's £30 is new.
+  assert.deepEqual(notAlreadyThere(incoming, stored), [row("2026-11-20", -1.67), row("2026-11-21", -30, "…9999")]);
 });
 
 if (failures) {
