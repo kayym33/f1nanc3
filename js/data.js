@@ -1,7 +1,8 @@
 // The signed-in user's transactions and category rules, loaded from
 // Supabase and kept in memory while the app is open. Nothing is stored on
 // the device itself: bank data stays on the server, behind the sign-in.
-import { guessCategory } from "./categories.js";
+import { notAlreadyThere } from "./bank.js";
+import { guessCategory, merchantOf } from "./categories.js";
 import { windowStart } from "./money.js";
 
 export class Finance {
@@ -9,6 +10,8 @@ export class Finance {
     this.cloud = cloud;
     this.transactions = [];
     this.rules = new Map();
+    // The latest bank connection (fin_bank_links), or null.
+    this.link = null;
     // idle, loading, ready or error.
     this.state = "idle";
     this.error = null;
@@ -25,21 +28,96 @@ export class Finance {
     this.changed();
     try {
       const [transactions, rules] = await Promise.all([
-        this.cloud.selectAll("fin_transactions", {
-          select: "id,account,booked_on,amount,description,merchant,type,category,category_source,source,balance",
-          booked_on: `gte.${windowStart()}`,
-          order: "booked_on.desc,created_at.desc,id.asc",
-        }),
+        this.fetchTransactions(),
         this.cloud.selectAll("fin_rules", { select: "merchant,category" }),
+        this.loadLink(),
       ]);
-      this.transactions = transactions.map((t) => ({ ...t, amount: Number(t.amount) }));
+      this.transactions = transactions;
       this.rules = new Map(rules.map((rule) => [rule.merchant, rule.category]));
+      // Anything stored by an older version is brought up to date, then
+      // read again (pairing transfers changes categories on the server).
+      if (await this.reread()) this.transactions = await this.fetchTransactions();
       this.state = "ready";
     } catch (error) {
       this.state = "error";
       this.error = error.message ?? String(error);
     }
     this.changed();
+  }
+
+  // The latest bank connection that isn't disconnected. Its table may not
+  // exist yet on an older server; then there's simply no connection.
+  async loadLink() {
+    try {
+      const rows = await this.cloud.selectAll("fin_bank_links", {
+        select: "id,bank,status,valid_until,accounts,last_synced_at,last_error,created_at",
+        status: "in.(active,expired)",
+        order: "created_at.desc",
+      });
+      this.link = rows[0] ?? null;
+    } catch {
+      this.link = null;
+    }
+  }
+
+  // Asks the server to fetch from the bank now; returns how many were new.
+  async syncBank() {
+    const { added } = await this.cloud.callFunction("bank", { action: "sync" });
+    await this.load();
+    return added;
+  }
+
+  async fetchTransactions() {
+    const rows = await this.cloud.selectAll("fin_transactions", {
+      select: "id,account,booked_on,amount,description,merchant,type,category,category_source,source,balance",
+      booked_on: `gte.${windowStart()}`,
+      order: "booked_on.desc,created_at.desc,id.asc",
+    });
+    return rows.map((t) => ({ ...t, amount: Number(t.amount) }));
+  }
+
+  // Brings stored transactions up to date with how statements are read now
+  // (categories.js improves over time: RBS card lines ending "CD" were once
+  // read as a merchant called "cd"). A transaction whose merchant now
+  // reads differently, or whose guessed category would now be different,
+  // is updated. Categories set by hand are kept, and so are transfers the
+  // server paired up. Rules saved under a merchant name nothing uses any
+  // more are dropped. Returns how many transactions changed.
+  async reread() {
+    const groups = new Map();
+    const oldNames = new Set();
+    let changed = 0;
+    for (const t of this.transactions) {
+      const merchant = merchantOf(t.description, t.type);
+      const renamed = merchant !== t.merchant;
+      let { category, category_source: source } = t;
+      if (source !== "manual" && !(source === "auto" && category === "transfers")) {
+        ({ category, source } = guessCategory({ ...t, merchant }, this.rules));
+      }
+      if (!renamed && category === t.category && source === t.category_source) continue;
+      if (renamed) oldNames.add(t.merchant);
+      const key = JSON.stringify([merchant, category, source]);
+      if (!groups.has(key)) groups.set(key, { change: { merchant, category, category_source: source }, list: [] });
+      groups.get(key).list.push(t);
+      changed++;
+    }
+    if (!changed) return 0;
+    for (const { change, list } of groups.values()) {
+      for (let start = 0; start < list.length; start += 100) {
+        const ids = list.slice(start, start + 100).map((t) => t.id);
+        await this.cloud.update("fin_transactions", { id: `in.(${ids.join(",")})` }, change);
+      }
+      for (const t of list) Object.assign(t, change);
+    }
+    const inUse = new Set(this.transactions.map((t) => t.merchant));
+    for (const name of oldNames) {
+      if (this.rules.has(name) && !inUse.has(name)) {
+        await this.cloud.remove("fin_rules", { merchant: `eq.${name}` });
+        this.rules.delete(name);
+      }
+    }
+    await this.cloud.rpc("fin_mark_transfers");
+    return changed;
   }
 
   clear() {
@@ -63,7 +141,12 @@ export class Finance {
   // as they are. Returns {added, already, tooOld}.
   async importStatement(transactions) {
     const start = windowStart();
-    const recent = transactions.filter((t) => t.booked_on >= start);
+    // Ones the bank connection already brought in (same account, date and
+    // amount) are left out, so connecting and importing don't double up.
+    const recent = notAlreadyThere(
+      transactions.filter((t) => t.booked_on >= start),
+      this.transactions.filter((t) => t.source === "bank"),
+    );
     const rows = recent.map((t) => {
       const { category, source } = guessCategory(t, this.rules);
       return { ...t, category, category_source: source, source: "csv" };
@@ -71,7 +154,8 @@ export class Finance {
     const added = await this.cloud.insertNew("fin_transactions", rows, "user_id,id");
     if (added) await this.cloud.rpc("fin_mark_transfers");
     await this.load();
-    return { added, already: rows.length - added, tooOld: transactions.length - recent.length };
+    const tooOld = transactions.filter((t) => t.booked_on < start).length;
+    return { added, already: transactions.length - tooOld - added, tooOld };
   }
 
   // Puts one transaction in a category. With `remember`, every payment to

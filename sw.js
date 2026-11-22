@@ -4,7 +4,7 @@
 const CACHE = "f1nanc3-shell";
 const SHELL = [
   "./", "index.html", "style.css", "manifest.webmanifest", "icons/icon-180.png", "icons/icon-192.png",
-  "js/app.js", "js/categories.js", "js/cloud.js", "js/config.js", "js/csv.js", "js/data.js", "js/flow.js",
+  "js/app.js", "js/bank.js", "js/categories.js", "js/cloud.js", "js/config.js", "js/csv.js", "js/data.js", "js/flow.js",
   "js/money.js", "js/summary.js", "js/theme.js", "js/ui.js", "js/wrapped.js",
   "js/views/importer.js", "js/views/me.js", "js/views/overview.js", "js/views/river.js", "js/views/transactions.js", "js/views/wrapped.js",
 ];
@@ -18,12 +18,15 @@ self.addEventListener("activate", (event) => {
 });
 
 // The network first, so a new version shows straight away; the cache
-// when offline. Requests to other sites (Supabase) go straight through.
+// when offline. "no-cache" makes the browser check with the server every
+// time instead of trusting GitHub Pages' 10-minute cache (an unchanged
+// file costs a tiny "not modified" reply), so a deploy shows on the next
+// open. Requests to other sites (Supabase) go straight through.
 self.addEventListener("fetch", (event) => {
   const url = new URL(event.request.url);
   if (event.request.method !== "GET" || url.origin !== location.origin) return;
   event.respondWith(
-    fetch(event.request)
+    fetch(event.request, { cache: "no-cache" })
       .then((response) => {
         if (response.ok) {
           const copy = response.clone();

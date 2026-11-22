@@ -36,8 +36,11 @@ const KEYWORDS = [
     "the range", "shein", "vinted", "apple store"]],
 ];
 
-// Card payment prefixes RBS puts before the merchant: "4378 31OCT25".
-const CARD_PREFIX = /^\d{4}\s+\d{1,2}[A-Z]{3}\d{2}$/i;
+// Card payment prefixes RBS puts before the merchant: the card's last 4
+// digits and the date, sometimes followed by C, D or CD ("4378 31OCT25 CD").
+const CARD_PREFIX = /^\d{4}\s+\d{1,2}[A-Z]{3}\d{2}(\s+[A-Z]{1,2})?$/i;
+// RBS online payments between accounts: "To A/C 12345678 , ... , Via Mobile Xfer".
+const ACCOUNT_PAYMENT = /^(to|from)\s+a\/c\s*(\d{4,})/i;
 
 function isReference(word) {
   const digits = word.replace(/\D/g, "").length;
@@ -45,10 +48,15 @@ function isReference(word) {
 }
 
 // Who a payment was to, as a short lowercase key: "tesco stores",
-// "octopus energy", "paypal netflix". Corrections are remembered by this,
-// so it has to come out the same for every payment to the same place.
-export function merchantOf(description) {
+// "octopus energy", "paypal netflix", "to a/c …5678". Corrections are
+// remembered by this, so it has to come out the same for every payment to
+// the same place. `type` is RBS's payment type (POS, DPC, INT...).
+export function merchantOf(description, type = "") {
   const text = description.replace(/^'+/, "").trim();
+  if (type.replace(/^'+/, "").trim().toUpperCase() === "INT") return "interest";
+  // Payments to and from an account are told apart by its number.
+  const account = text.match(ACCOUNT_PAYMENT);
+  if (account) return `${account[1].toLowerCase()} a/c …${account[2].slice(-4)}`;
   const parts = text.split(/\s*,\s*/).map((part) => part.trim()).filter(Boolean);
   const named = parts.find((part) => !CARD_PREFIX.test(part) && /[a-z]{2}/i.test(part)) ?? text;
   const words = named
@@ -72,11 +80,13 @@ function matches(merchant, keyword) {
   return new RegExp(`(^|[^a-z])${escaped}${end}`).test(merchant);
 }
 
-// {category, source}: a remembered rule first, then cash machines, then
-// the keyword list, then income for money in, then "other".
+// {category, source}: a remembered rule first, then RBS transfers between
+// your own accounts (TFR: round-ups and the like), then cash machines,
+// then the keyword list, then income for money in, then "other".
 export function guessCategory({ merchant, type = "", amount }, rules = new Map()) {
   if (rules.has(merchant)) return { category: rules.get(merchant), source: "rule" };
   const kind = type.replace(/^'+/, "").trim().toUpperCase();
+  if (kind === "TFR") return { category: "transfers", source: "auto" };
   if (kind === "C/L" || kind === "ATM" || /^(cash|atm)\b/.test(merchant)) return { category: "cash", source: "auto" };
   if (amount > 0) return { category: "income", source: "auto" };
   for (const [category, keywords] of KEYWORDS) {

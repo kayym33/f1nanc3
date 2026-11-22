@@ -174,7 +174,7 @@ export async function readStatement(text) {
       booked_on: date,
       amount,
       description,
-      merchant: merchantOf(description),
+      merchant: merchantOf(description, clean(row[columns.type])),
       type: clean(row[columns.type]),
       balance: "balance" in columns ? parseAmount(row[columns.balance]) : null,
     });

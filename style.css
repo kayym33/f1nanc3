@@ -315,6 +315,14 @@ nav a.on { color: var(--background); background: var(--ink); font-weight: 700; p
 /* The open tab carries a bar of the accent, or the flag's stripes. */
 nav a.on::before { content: ""; position: absolute; left: 0; right: 0; top: 0; height: 4px; background: var(--accent-bar, var(--accent)); }
 
+.legal-links { margin-top: 32px; color: var(--muted); font-size: 12px; }
+.legal-links a { color: var(--muted); }
+
+/* The bank connection needs you: every page says so. */
+.banner { margin: 12px 16px 0; padding: 9px 12px; border: 1px solid var(--accent); color: var(--ink); }
+.banner[hidden] { display: none; }
+.banner a { color: var(--accent-text); font-weight: 700; text-decoration: none; }
+
 /* The river (views/river.js): one canvas of glyphs, and a tooltip. */
 .river-line { color: var(--ink); margin: 14px 0 6px; }
 .river-wrap { position: relative; height: 440px; margin: 8px -4px 4px; touch-action: manipulation; }
@@ -436,6 +444,8 @@ body.wrapped-open nav { display: none; }
   nav a:not(.on):hover { color: var(--ink); background: var(--hover); }
 
   main { grid-area: main; min-width: 0; padding: 20px 24px 48px 8px; }
+  .banner { grid-area: main; align-self: start; margin: 16px 24px 0 8px; position: relative; z-index: 1; }
+  body:has(.banner:not([hidden])) main { padding-top: 70px; }
   main[data-view="import"], main[data-view="me"] { max-width: 760px; }
   /* Signing in: no sidebar, a centred form. */
   body:has(nav[hidden]) main { grid-column: 1 / -1; width: 100%; max-width: 440px; margin: 0 auto; padding: 20px 24px; }
