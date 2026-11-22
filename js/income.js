@@ -54,3 +54,25 @@ export function expectedIncome(transactions, today = new Date()) {
     .filter((source) => !source.last.startsWith(month) && source.next.slice(0, 7) <= month && days(source.last, todayIso) < 62)
     .map((source) => ({ name: source.name, amount: source.amount, day: Math.max(Number(todayIso.slice(8, 10)), source.next.startsWith(month) ? Number(source.next.slice(8, 10)) : 0) }));
 }
+
+// All the regular money you can count on in a month: {main, sources,
+// total}. `main` is your pay (the biggest regular income: the savings goal
+// is built on it). Each other source counts at its average: an amount paid
+// in 10 of the last 12 full months counts as 10/12 of it.
+export function monthlyIncome(transactions, today = new Date()) {
+  const sources = regularIncome(transactions);
+  const current = isoDate(today).slice(0, 7);
+  const months = [...new Set(transactions.map((t) => t.booked_on.slice(0, 7)))].filter((m) => m < current).sort().slice(-12);
+  const counted = sources.map((source, index) => {
+    const paid = new Set(transactions
+      .filter((t) => t.merchant === source.merchant && t.amount > 0 && t.category === "income" && months.includes(t.booked_on.slice(0, 7)))
+      .map((t) => t.booked_on.slice(0, 7)));
+    const share = index === 0 || !months.length ? 1 : Math.min(1, paid.size / months.length);
+    return { ...source, months: paid.size, outOf: months.length, share, monthly: Math.round(source.amount * share * 100) / 100 };
+  });
+  return {
+    main: counted[0]?.amount ?? 0,
+    sources: counted,
+    total: Math.round(counted.reduce((sum, source) => sum + source.monthly, 0) * 100) / 100,
+  };
+}

@@ -4,7 +4,7 @@
 import { latestBalances } from "../balances.js";
 import { biggestNonEssentials, budgetsFor, dailyAllowance, ESSENTIALS, FLEXIBLE, GOAL_MONTHS, monthProgress, outlook, PLANS, typicalSpending } from "../budget.js";
 import { displayName } from "../categories.js";
-import { regularIncome } from "../income.js";
+import { monthlyIncome } from "../income.js";
 import { monthLabel, monthOf, pounds, sum } from "../money.js";
 import { findSubscriptions } from "../subscriptions.js";
 import { action, bar, button, esc, heading, notReady } from "../ui.js";
@@ -21,10 +21,13 @@ export function budgetPicture(ctx) {
   const subs = findSubscriptions(transactions, finance.subscriptionSettings).filter((sub) => !sub.ended && !sub.hidden);
   const fixedMerchants = new Set(subs.map((sub) => sub.merchant));
   const fixed = Math.round(sum(subs.map((sub) => sub.monthly)) * 100) / 100;
-  const pay = regularIncome(transactions)[0]?.amount ?? 0;
+  // Plans use all your regular income (side income at its average); the
+  // goal uses your main pay alone.
+  const income = monthlyIncome(transactions);
+  const pay = income.total;
   const savings = latestBalances(transactions).filter((b) => finance.accountKind(b.account) === "savings");
   const saved = Math.round(sum(savings.map((b) => b.balance)) * 100) / 100;
-  const goal = Math.round(pay * GOAL_MONTHS);
+  const goal = Math.round(income.main * GOAL_MONTHS);
   const typical = typicalSpending(transactions, fixedMerchants);
   const plan = finance.budget.plan;
   const own = finance.budget.amounts ?? {};
@@ -32,7 +35,7 @@ export function budgetPicture(ctx) {
   const budgets = plan ? budgetsFor(typical, plan, own) : {};
   const progress = plan ? monthProgress(transactions, budgets, fixedMerchants) : [];
   return {
-    pay, fixed, subs, fixedMerchants, saved, hasSavings: savings.length > 0, goal, typical, plan, own, budgets, outlooks,
+    pay, income, fixed, subs, fixedMerchants, saved, hasSavings: savings.length > 0, goal, typical, plan, own, budgets, outlooks,
     current: plan ? outlook({ pay, fixed, budgets, saved, goal }) : null,
     progress, allowance: plan ? dailyAllowance(progress) : 0,
     typicalTotal: Math.round(sum(Object.values(typical)) * 100) / 100,
@@ -81,7 +84,7 @@ export function render(ctx) {
       <div class="goal">
         <p><span class="big">${esc(whole(p.saved))}</span> of ${esc(whole(p.goal))} saved <span class="muted">· ${Math.round(share * 100)}%</span></p>
         <p class="goal-bar">${bar(share, 30)}</p>
-        <p class="hint">${GOAL_MONTHS} × your typical pay (${esc(whole(p.pay))})${p.hasSavings ? "" : " · mark your savings account in settings ⚙ so it counts"}${p.current ? ` · ${p.current.monthsToGoal === 0 ? "reached: keep going" : `goal in ${months(p.current.monthsToGoal)} on the ${PLANS[p.plan].label} plan`}` : ""}</p>
+        <p class="hint">${GOAL_MONTHS} × your typical pay (${esc(whole(p.income.main))})${p.hasSavings ? "" : " · mark your savings account in settings ⚙ so it counts"}${p.current ? ` · ${p.current.monthsToGoal === 0 ? "reached: keep going" : `goal in ${months(p.current.monthsToGoal)} on the ${PLANS[p.plan].label} plan`}` : ""}</p>
       </div>
 
       ${p.plan ? `
@@ -91,13 +94,13 @@ export function render(ctx) {
         <ul class="meters budget-meters">${p.progress.sort((a, b) => b.share - a.share).map(progressRow).join("")}</ul>` : ""}
 
       ${heading("pick a plan")}
-      <p class="hint">your pay, less your bills and subscriptions (${esc(whole(p.fixed))}), less the plan's budgets, is what you save each month</p>
+      <p class="hint">what comes in (${esc(whole(p.pay))}), less your bills and subscriptions (${esc(whole(p.fixed))}), less the plan's budgets, is what you save each month</p>
       <div class="plans">${Object.entries(PLANS).map(([name, plan]) => {
         const o = p.outlooks[name];
         return `
           <button type="button" class="plan${p.plan === name ? " on" : ""}" ${action("budget-plan", { value: name })}>
             <span class="plan-name">${esc(plan.label)}</span>
-            <span class="plan-saving ${o.saving < 0 ? "bad" : "good"}">${esc(signed(o.saving))}<small>a month</small></span>
+            <span class="plan-saving ${o.saving < 0 ? "bad" : "good"}">${o.saving < 0 ? `${esc(whole(-o.saving))} <small>short a month</small>` : `saves ${esc(whole(o.saving))} <small>a month</small>`}</span>
             <span class="plan-goal">goal: ${esc(months(o.monthsToGoal))}</span>
             <span class="plan-about">${esc(plan.about)}</span>
           </button>`;
@@ -105,10 +108,10 @@ export function render(ctx) {
 
       ${heading("a month, in numbers")}
       <dl class="facts sums">
-        <div><dt>pay</dt><dd>${esc(whole(p.pay))}</dd></div>
+        ${p.income.sources.map((source, i) => `<div><dt>${i === 0 ? "pay" : "other income"}</dt><dd>${i ? "+" : ""}${esc(whole(source.monthly))} <span class="muted">(${esc(source.name)}${source.share < 1 ? `: £${Math.round(source.amount)} in ${source.months} of the last ${source.outOf} months` : ""})</span></dd></div>`).join("") || `<div><dt>pay</dt><dd>${esc(whole(0))} <span class="muted">(no regular pay found yet)</span></dd></div>`}
         <div><dt>bills</dt><dd>−${esc(whole(p.fixed))} <span class="muted">(${p.subs.length} on the <a href="#/subs">subs</a> tab)</span></dd></div>
         <div><dt>spending</dt><dd>−${esc(whole(p.plan ? sum(Object.values(p.budgets)) : p.typicalTotal))} <span class="muted">(${p.plan ? "your budgets" : "a typical month"})</span></dd></div>
-        <div class="total"><dt>saved</dt><dd class="${(p.current?.saving ?? p.pay - p.fixed - p.typicalTotal) < 0 ? "bad" : "good"}">${esc(signed(p.current?.saving ?? p.pay - p.fixed - p.typicalTotal))}</dd></div>
+        <div class="total"><dt>${(p.current?.saving ?? p.pay - p.fixed - p.typicalTotal) < 0 ? "short" : "saved"}</dt><dd class="${(p.current?.saving ?? p.pay - p.fixed - p.typicalTotal) < 0 ? "bad" : "good"}">${esc(signed(p.current?.saving ?? p.pay - p.fixed - p.typicalTotal))}</dd></div>
       </dl>
 
       ${heading("budgets")}
