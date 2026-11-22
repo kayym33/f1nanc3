@@ -11,6 +11,8 @@ const ROOT = new URL("..", import.meta.url).pathname;
 const TYPES = { ".html": "text/html", ".js": "text/javascript", ".css": "text/css", ".png": "image/png", ".webmanifest": "application/manifest+json" };
 const transactions = new Map();
 const rules = new Map();
+// Subscription choices: merchant -> {kind, url, hidden}.
+const subscriptionSettings = new Map();
 // The pretend bank connection: [{id, bank, status, valid_until, accounts, ...}].
 const links = [];
 
@@ -85,6 +87,13 @@ createServer(async (request, response) => {
   if (route === "PATCH /rest/v1/fin_transactions") {
     for (const row of transactions.values()) if (matches(row, url.searchParams)) Object.assign(row, data);
     return json(response, 204);
+  }
+  if (route === "GET /rest/v1/fin_subscriptions") {
+    return json(response, 200, [...subscriptionSettings].map(([merchant, row]) => ({ merchant, ...row })));
+  }
+  if (route === "POST /rest/v1/fin_subscriptions") {
+    for (const { merchant, kind, url: link, hidden } of data) subscriptionSettings.set(merchant, { kind, url: link, hidden });
+    return json(response, 201);
   }
   if (route === "GET /rest/v1/fin_bank_links") {
     return json(response, 200, links.filter((link) => matches(link, url.searchParams)).reverse());

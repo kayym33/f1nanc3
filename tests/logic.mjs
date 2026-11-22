@@ -3,6 +3,8 @@
 import assert from "node:assert/strict";
 import { accountLast4, bankRow, describe, notAlreadyThere, signedAmount } from "../js/bank.js";
 import { guessCategory, merchantOf } from "../js/categories.js";
+import { knownService } from "../js/services.js";
+import { findSubscriptions, nextMonth, priceChange } from "../js/subscriptions.js";
 import { parseAmount, parseDate, parseRows, readStatement } from "../js/csv.js";
 import { allocateRows, bandTop, riverBands, riverLayout } from "../js/flow.js";
 import { addMonths, pounds, sum, windowMonths, windowStart } from "../js/money.js";
@@ -276,6 +278,61 @@ await check("bank and CSV transactions don't double up", () => {
   const incoming = [row("2026-11-20", -1.67), row("2026-11-20", -1.67), row("2026-11-20", -1.67), row("2026-11-21", -30), row("2026-11-21", -30, "…9999")];
   // Two coffees were already there, a third is new; the other account's £30 is new.
   assert.deepEqual(notAlreadyThere(incoming, stored), [row("2026-11-20", -1.67), row("2026-11-21", -30, "…9999")]);
+});
+
+await check("known services", () => {
+  assert.equal(knownService("netflix.com")?.name, "Netflix");
+  assert.equal(knownService("paypal netflix.com")?.name, "Netflix");
+  assert.equal(knownService("claude.ai subscription")?.name, "Claude");
+  assert.equal(knownService("apple.com bill")?.name, "Apple");
+  assert.equal(knownService("octopus energy")?.kind, "bill");
+  assert.equal(knownService("ee limited")?.name, "EE");
+  // Whole words only for short names.
+  assert.equal(knownService("seeds of change"), null);
+  assert.equal(knownService("btec centre"), null);
+  assert.equal(knownService("tesco stores"), null);
+});
+
+await check("finding subscriptions", () => {
+  const pay = (merchant, booked_on, amount, category = "entertainment") => ({ merchant, booked_on, amount, category });
+  const list = [
+    // Netflix every month, with a price rise in September.
+    ...["2026-06-03", "2026-07-03", "2026-08-03"].map((d) => pay("netflix.com", d, -10.99)),
+    ...["2026-09-03", "2026-10-03", "2026-11-03"].map((d) => pay("netflix.com", d, -12.99)),
+    // Energy varies a bit; it's a bill.
+    pay("octopus energy", "2026-08-15", -80, "bills"), pay("octopus energy", "2026-09-15", -92, "bills"), pay("octopus energy", "2026-10-15", -85, "bills"), pay("octopus energy", "2026-11-15", -85, "bills"),
+    // Rent to a person: unknown, so you decide; monthly.
+    pay("to a/c …1234", "2026-09-01", -600, "other"), pay("to a/c …1234", "2026-10-01", -600, "other"), pay("to a/c …1234", "2026-11-01", -600, "other"),
+    // Weekly shopping isn't a subscription.
+    ...Array.from({ length: 16 }, (_, i) => pay("tesco stores", `2026-${String(8 + Math.floor(i / 4)).padStart(2, "0")}-${String(1 + (i % 4) * 7).padStart(2, "0")}`, -30, "groceries")),
+    // A gym that stopped in August.
+    pay("puregym", "2026-05-02", -24.99), pay("puregym", "2026-06-02", -24.99), pay("puregym", "2026-07-02", -24.99), pay("puregym", "2026-08-02", -24.99),
+    // Monthly but wildly different amounts: not one thing.
+    pay("amazon", "2026-08-05", -5), pay("amazon", "2026-09-05", -60), pay("amazon", "2026-10-05", -12),
+    // Transfers never count.
+    ...["2026-08-26", "2026-09-26", "2026-10-26"].map((d) => pay("to savings", d, -300, "transfers")),
+  ];
+  const settings = new Map([["to a/c …1234", { kind: "bill", url: "https://landlord.example" }]]);
+  const found = findSubscriptions(list, settings, new Date(2026, 10, 22));
+  const by = Object.fromEntries(found.map((s) => [s.merchant, s]));
+  assert.deepEqual(Object.keys(by).sort(), ["netflix.com", "octopus energy", "puregym", "to a/c …1234"]);
+  assert.equal(by["netflix.com"].name, "Netflix");
+  assert.equal(by["netflix.com"].kind, "subscription");
+  assert.equal(by["netflix.com"].monthly, 12.99);
+  assert.equal(by["netflix.com"].yearly, 155.88);
+  assert.equal(by["netflix.com"].next, "2026-12-03");
+  assert.deepEqual(by["netflix.com"].change, { from: 10.99, to: 12.99, on: "2026-09-03" });
+  assert.equal(by["octopus energy"].kind, "bill");
+  assert.equal(by["to a/c …1234"].kind, "bill");
+  assert.equal(by["to a/c …1234"].url, "https://landlord.example");
+  assert.equal(by["to a/c …1234"].linkKnown, false);
+  assert.equal(by.puregym.ended, true);
+  assert.equal(by["netflix.com"].ended, false);
+  // Most expensive first.
+  assert.equal(found[0].merchant, "to a/c …1234");
+  assert.equal(nextMonth("2026-01-31"), "2026-02-28");
+  assert.equal(nextMonth("2026-12-15"), "2027-01-15");
+  assert.equal(priceChange([pay("x", "2026-01-01", -5), pay("x", "2026-02-01", -5)]), null);
 });
 
 if (failures) {

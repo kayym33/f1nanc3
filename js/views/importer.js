@@ -38,7 +38,7 @@ function previewHtml() {
 export function render() {
   const result = state.result;
   return {
-    crumbs: ["import"],
+    crumbs: [["settings", "/settings"], "import"],
     html: `
       ${result ? `<p class="flash">added ${result.added} new${result.already ? `; ${result.already} were already here` : ""}${result.tooOld ? `; ${result.tooOld} too old` : ""}</p>` : ""}
       ${state.error ? `<p class="error">${esc(state.error)}</p>` : ""}

@@ -10,6 +10,7 @@ import * as importer from "./views/importer.js";
 import * as me from "./views/me.js";
 import * as overview from "./views/overview.js";
 import * as river from "./views/river.js";
+import * as subs from "./views/subs.js";
 import * as transactions from "./views/transactions.js";
 import * as wrapped from "./views/wrapped.js";
 
@@ -31,10 +32,13 @@ const ROUTES = [
   [/^\/river$/, "river", river.render, "/river"],
   [/^\/river\/(?<month>\d{4}-\d{2})$/, "river", river.render, "/river"],
   [/^\/wrapped$/, "wrapped", wrapped.render, "/"],
-  [/^\/import$/, "import", importer.render, "/import"],
-  [/^\/me$/, "me", me.render, "/me"],
+  [/^\/subs$/, "subs", subs.render, "/subs"],
+  [/^\/subs\/(?<key>[^/]+)$/, "sub", subs.renderOne, "/subs"],
+  [/^\/settings$/, "me", me.render, "/settings"],
+  [/^\/me$/, "me", me.render, "/settings"],
+  [/^\/import$/, "import", importer.render, "/settings"],
 ];
-const VIEWS = [overview, transactions, river, wrapped, importer, me];
+const VIEWS = [overview, transactions, river, subs, wrapped, importer, me];
 const handlers = (kind) => Object.assign({}, ...VIEWS.map((view) => view[kind] ?? {}));
 const ACTIONS = handlers("actions");
 const FORMS = handlers("forms");
@@ -110,9 +114,10 @@ function render() {
 
   document.querySelector(".trail").innerHTML = crumbHtml(result.crumbs);
   document.querySelector("nav").hidden = !signedIn;
-  for (const link of document.querySelectorAll("nav a")) {
+  for (const link of document.querySelectorAll("nav a, a.cog")) {
     link.classList.toggle("on", signedIn && link.getAttribute("href") === `#${current.tab}`);
   }
+  document.querySelector("a.cog").hidden = !signedIn;
   main.dataset.view = signedIn ? current.name : "sign-in";
   // While the bank connection needs you, every page says so (not wrapped).
   const banner = signedIn && current.name !== "wrapped" ? me.bankBanner(finance) : null;
@@ -162,6 +167,9 @@ async function load() {
 // Taps, forms and typing all dispatch by name.
 
 document.addEventListener("click", (event) => {
+  // A real link inside a tappable row (a subscription's website) is just a link.
+  const anchor = event.target.closest("a[href]");
+  if (anchor && !anchor.dataset.action) return;
   const target = event.target.closest("[data-action]");
   if (!target) return;
   const name = target.dataset.action;
