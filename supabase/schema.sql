@@ -198,3 +198,27 @@ create policy "Users manage their own subscription settings"
 
 revoke all on public.fin_subscriptions from anon;
 grant select, insert, update, delete on public.fin_subscriptions to authenticated;
+
+-- Names for your accounts ("…5231" -> "current"), and whether each is
+-- money to spend or savings, for the overview's balance.
+create table if not exists public.fin_accounts (
+  user_id uuid not null default auth.uid() references auth.users (id) on delete cascade,
+  account text not null,
+  name text check (name is null or char_length(name) <= 40),
+  kind text not null default 'spending' check (kind in ('spending', 'savings')),
+  updated_at timestamptz not null default now(),
+  primary key (user_id, account)
+);
+
+alter table public.fin_accounts enable row level security;
+
+drop policy if exists "Users manage their own account names" on public.fin_accounts;
+create policy "Users manage their own account names"
+  on public.fin_accounts
+  for all
+  to authenticated
+  using (user_id = (select auth.uid()))
+  with check (user_id = (select auth.uid()));
+
+revoke all on public.fin_accounts from anon;
+grant select, insert, update, delete on public.fin_accounts to authenticated;

@@ -5,6 +5,7 @@ import { BANK_CONNECTION } from "../config.js";
 import { dayLabel } from "../money.js";
 import { CHART_STYLES, chartStyle, setChartStyle } from "../chartstyle.js";
 import { setTheme, theme, THEMES } from "../theme.js";
+import { latestBalances } from "../balances.js";
 import { action, button, esc, heading } from "../ui.js";
 
 const plural = (count, word) => `${count} ${word}${count === 1 ? "" : "s"}`;
@@ -92,6 +93,31 @@ export async function finishConnecting(ctx, params) {
   await ctx.finance.load();
 }
 
+// Each account: its name, and whether it's money to spend or savings.
+function accountsHtml(ctx) {
+  const accounts = ctx.finance.accountList();
+  if (!accounts.length) return "";
+  const balances = new Map(latestBalances(ctx.finance.transactions).map((b) => [b.account, b]));
+  return `
+    ${heading("accounts")}
+    <ul class="accounts">${accounts.map((account) => {
+      const own = ctx.finance.accounts.get(account) ?? {};
+      const kind = own.kind ?? "spending";
+      const balance = balances.get(account);
+      return `
+        <li>
+          <form class="account-name" data-form="account-name" data-account="${esc(account)}">
+            <span class="number">${esc(account)}</span>
+            <input name="name" value="${esc(own.name ?? "")}" placeholder="name it" maxlength="40" autocomplete="off" aria-label="name for ${esc(account)}">
+            <button type="submit" class="button small">save</button>
+          </form>
+          <div class="chips">${["spending", "savings"].map((choice) => `<button type="button" class="chip${choice === kind ? " on" : ""}" ${action("account-kind", { account, value: choice })}>${choice}</button>`).join("")}</div>
+          ${balance ? `<span class="muted balance-note">£${balance.balance.toLocaleString("en-GB", { minimumFractionDigits: 2, maximumFractionDigits: 2 })} on ${esc(dayLabel(balance.date))}</span>` : ""}
+        </li>`;
+    }).join("")}</ul>
+    <p class="hint">names show in the list and the balance; savings are counted apart from money to spend</p>`;
+}
+
 export function render(ctx) {
   const count = ctx.finance.transactions.length;
   return {
@@ -104,6 +130,7 @@ export function render(ctx) {
       ${heading("statements")}
       <p>${plural(count, "transaction")}, kept for the current month and the 12 before it.</p>
       <div class="row-buttons">${button("import a statement ›", "go", { to: "/import" }, { solid: true })}</div>
+      ${accountsHtml(ctx)}
       ${BANK_CONNECTION ? `${heading("bank")}${bankHtml(ctx)}` : ""}
       ${heading("theme")}
       <div class="chips">${THEMES.map((choice) => `<button type="button" class="chip${choice === theme() ? " on" : ""}" ${action("me-theme", { value: choice })}>${choice}</button>`).join("")}</div>
@@ -116,6 +143,9 @@ export function render(ctx) {
 }
 
 export const actions = {
+  async "account-kind"(ctx, { account, value }) {
+    await ctx.finance.saveAccount(account, { kind: value }).catch((problem) => alert(problem.message));
+  },
   async "bank-connect"(ctx) {
     bankState.error = null;
     bankState.message = null;
@@ -191,6 +221,10 @@ export function renderSignIn() {
 }
 
 export const forms = {
+  async "account-name"(ctx, form) {
+    const name = form.elements.name.value.trim() || null;
+    await ctx.finance.saveAccount(form.dataset.account, { name }).catch((problem) => alert(problem.message));
+  },
   async "sign-in"(ctx, form) {
     const error = form.querySelector(".error");
     error.hidden = true;

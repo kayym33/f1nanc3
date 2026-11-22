@@ -15,6 +15,8 @@ export class Finance {
     this.link = null;
     // Your choices about monthly payments: merchant -> {kind, url, hidden}.
     this.subscriptionSettings = new Map();
+    // Your names for accounts: "…5231" -> {name, kind: spending|savings}.
+    this.accounts = new Map();
     // idle, loading, ready or error.
     this.state = "idle";
     this.error = null;
@@ -35,6 +37,7 @@ export class Finance {
         this.cloud.selectAll("fin_rules", { select: "merchant,category" }),
         this.loadLink(),
         this.loadSubscriptionSettings(),
+        this.loadAccounts(),
       ]);
       this.transactions = transactions;
       this.rules = new Map(rules.map((rule) => [rule.merchant, rule.category]));
@@ -64,6 +67,36 @@ export class Finance {
     } catch {
       this.link = null;
     }
+  }
+
+  async loadAccounts() {
+    try {
+      const rows = await this.cloud.selectAll("fin_accounts", { select: "account,name,kind" });
+      this.accounts = new Map(rows.map((row) => [row.account, { name: row.name, kind: row.kind }]));
+    } catch {
+      this.accounts = new Map();
+    }
+  }
+
+  // "current" for "…5231" once you've named it; "…5231" until then.
+  accountName(account) {
+    return this.accounts.get(account)?.name || account;
+  }
+
+  accountKind(account) {
+    return this.accounts.get(account)?.kind ?? "spending";
+  }
+
+  // Every account that has transactions, in the order first seen.
+  accountList() {
+    return [...new Set(this.transactions.map((t) => t.account))].sort();
+  }
+
+  async saveAccount(account, changes) {
+    const next = { name: null, kind: "spending", ...this.accounts.get(account), ...changes };
+    await this.cloud.upsert("fin_accounts", [{ account, ...next, updated_at: new Date().toISOString() }], "user_id,account");
+    this.accounts.set(account, next);
+    this.changed();
   }
 
   // Older servers may not have the table yet; then there are no choices.
@@ -147,6 +180,7 @@ export class Finance {
 
   clear() {
     this.subscriptionSettings = new Map();
+    this.accounts = new Map();
     this.transactions = [];
     this.rules = new Map();
     this.state = "idle";

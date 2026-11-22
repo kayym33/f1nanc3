@@ -10,6 +10,7 @@
 // dragging across one highlights that stretch with its totals.
 import { chartStyle } from "../chartstyle.js";
 import { monthLabel, monthOf, pounds } from "../money.js";
+import { expectedIncome } from "../income.js";
 import { billDays, findSubscriptions, projection } from "../subscriptions.js";
 import { categoryGrid, gridCsv, inOut, months, niceCeiling, pace } from "../trends.js";
 import { action, button, esc, heading, notReady } from "../ui.js";
@@ -62,6 +63,7 @@ export function render(ctx) {
   const bills = showBillDays();
   const marks = marksFor(ctx);
   const coming = marks.filter((mark) => !mark.gone);
+  const pay = expectedIncome(ctx.finance.transactions);
   const drag = (what) => `<p class="readout" data-readout><span class="hint">drag across the ${what} to add them up</span></p>`;
   return {
     crumbs: ["charts"],
@@ -81,10 +83,11 @@ export function render(ctx) {
           <button type="button" class="chip toggle${bills ? " on" : ""}" ${action("charts-bills")} aria-pressed="${bills}">bill days ${bills ? "on" : "off"}</button></p>
         <div class="chart" data-chart="pace" aria-label="spending so far this month against last month"></div>
         ${drag("days")}
-        ${bills && coming.length ? `
+        ${bills && (coming.length || pay.length) ? `
           <div class="coming"><h3>still to come this month</h3><ul>
-            ${coming.map((mark) => `<li><span class="when">the ${ordinal(mark.day)}</span><span>${esc(mark.name)}</span><span class="amount">${esc(pounds(mark.amount))}</span></li>`).join("")}
-            <li class="sum"><span></span><span>total</span><span class="amount">${esc(pounds(Math.round(coming.reduce((t, m) => t + m.amount, 0) * 100) / 100))}</span></li>
+            ${[...coming.map((mark) => ({ ...mark, in: false })), ...pay.map((p) => ({ ...p, in: true }))].sort((a, b) => a.day - b.day).map((item) => `
+              <li class="${item.in ? "in" : ""}"><span class="when">the ${ordinal(item.day)}</span><span>${esc(item.name)}${item.in ? " <small>pay</small>" : ""}</span><span class="amount">${item.in ? "+" : ""}${esc(pounds(item.amount))}</span></li>`).join("")}
+            ${coming.length ? `<li class="sum"><span></span><span>bills to come</span><span class="amount">${esc(pounds(Math.round(coming.reduce((t, m) => t + m.amount, 0) * 100) / 100))}</span></li>` : ""}
           </ul></div>` : ""}
         ${bills && !marks.length ? `<p class="hint">no bills to mark yet: they come from the subs tab once they've gone out three months running</p>` : ""}
       </section>
