@@ -12,6 +12,8 @@ export class Finance {
     this.rules = new Map();
     // The latest bank connection (fin_bank_links), or null.
     this.link = null;
+    // Your choices about monthly payments: merchant -> {kind, url, hidden}.
+    this.subscriptionSettings = new Map();
     // idle, loading, ready or error.
     this.state = "idle";
     this.error = null;
@@ -31,6 +33,7 @@ export class Finance {
         this.fetchTransactions(),
         this.cloud.selectAll("fin_rules", { select: "merchant,category" }),
         this.loadLink(),
+        this.loadSubscriptionSettings(),
       ]);
       this.transactions = transactions;
       this.rules = new Map(rules.map((rule) => [rule.merchant, rule.category]));
@@ -58,6 +61,25 @@ export class Finance {
     } catch {
       this.link = null;
     }
+  }
+
+  // Older servers may not have the table yet; then there are no choices.
+  async loadSubscriptionSettings() {
+    try {
+      const rows = await this.cloud.selectAll("fin_subscriptions", { select: "merchant,kind,url,hidden" });
+      this.subscriptionSettings = new Map(rows.map((row) => [row.merchant, { kind: row.kind, url: row.url, hidden: row.hidden }]));
+    } catch {
+      this.subscriptionSettings = new Map();
+    }
+  }
+
+  // Changes your choices for one monthly payment: {kind}, {url} or {hidden}.
+  async saveSubscription(merchant, changes) {
+    const current = this.subscriptionSettings.get(merchant) ?? { kind: null, url: null, hidden: false };
+    const next = { ...current, ...changes };
+    await this.cloud.upsert("fin_subscriptions", [{ merchant, ...next, updated_at: new Date().toISOString() }], "user_id,merchant");
+    this.subscriptionSettings.set(merchant, next);
+    this.changed();
   }
 
   // Asks the server to fetch from the bank now; returns how many were new.
@@ -121,6 +143,7 @@ export class Finance {
   }
 
   clear() {
+    this.subscriptionSettings = new Map();
     this.transactions = [];
     this.rules = new Map();
     this.state = "idle";

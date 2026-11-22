@@ -21,3 +21,8 @@ function apiUrl() {
 }
 
 export const API_URL = apiUrl().replace(/\/$/, "");
+
+// The bank connection (Enable Banking) is built but parked: Enable
+// Banking's own-accounts mode doesn't offer UK banks. Turn this on once a
+// provider that can reach RBS is set up (supabase/functions, README).
+export const BANK_CONNECTION = false;

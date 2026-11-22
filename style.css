@@ -318,6 +318,38 @@ nav a.on::before { content: ""; position: absolute; left: 0; right: 0; top: 0; h
 .legal-links { margin-top: 32px; color: var(--muted); font-size: 12px; }
 .legal-links a { color: var(--muted); }
 
+/* The ⚙ at the top right: settings. */
+.cog { color: var(--muted); text-decoration: none; font-size: 22px; line-height: 1; padding: 4px 2px 4px 10px; }
+.cog.on { color: var(--accent-text); }
+.cog[hidden] { display: none; }
+
+/* Subscriptions and bills (views/subs.js). */
+.subs-total { color: var(--ink); font-size: 18px; margin: 4px 0 0; }
+.subs-total strong { font-size: 34px; }
+.section-total { margin-left: auto; color: var(--muted); font-size: 12px; }
+.subs li {
+  display: grid; grid-template-columns: 1fr auto auto; gap: 0 12px; align-items: baseline;
+  padding: 10px 0; border-bottom: 1px solid var(--rule); cursor: pointer;
+}
+.subs li:active, .subs li:hover { background: var(--hover); }
+.subs .who { color: var(--ink); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.subs .amount { color: var(--ink); font-weight: 700; text-align: right; }
+.subs .side { min-width: 3.5em; text-align: right; }
+.subs .what { grid-column: 1 / -1; color: var(--muted); font-size: 12px; }
+.subs.ended .who, .subs.ended .amount { color: var(--muted); font-weight: 400; }
+.sub-link { color: var(--accent-text); font-weight: 700; text-decoration: none; padding: 6px 0 6px 10px; }
+p > .sub-link { padding: 0; }
+.add-link { color: var(--faint); font-size: 12px; }
+.change.up { color: var(--warning); }
+.change.down { color: var(--accent-text); }
+.mini-chart { margin: 18px 0 4px; font: 12px/1.1 var(--mono); color: var(--ink); white-space: pre; overflow: hidden; }
+.mini-chart b { font-weight: 400; }
+.mini-chart .a { color: var(--accent); }
+.hidden-subs { margin-top: 22px; color: var(--muted); }
+.hidden-subs summary { cursor: pointer; font-size: 12px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.04em; }
+.big-amount small { font-size: 15px; font-weight: 400; }
+.link-form input { margin-top: 0; }
+
 /* The bank connection needs you: every page says so. */
 .banner { margin: 12px 16px 0; padding: 9px 12px; border: 1px solid var(--accent); color: var(--ink); }
 .banner[hidden] { display: none; }
@@ -446,7 +478,7 @@ body.wrapped-open nav { display: none; }
   main { grid-area: main; min-width: 0; padding: 20px 24px 48px 8px; }
   .banner { grid-area: main; align-self: start; margin: 16px 24px 0 8px; position: relative; z-index: 1; }
   body:has(.banner:not([hidden])) main { padding-top: 70px; }
-  main[data-view="import"], main[data-view="me"] { max-width: 760px; }
+  main[data-view="import"], main[data-view="me"], main[data-view="subs"], main[data-view="sub"] { max-width: 760px; }
   /* Signing in: no sidebar, a centred form. */
   body:has(nav[hidden]) main { grid-column: 1 / -1; width: 100%; max-width: 440px; margin: 0 auto; padding: 20px 24px; }
 

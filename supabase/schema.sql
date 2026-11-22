@@ -172,3 +172,29 @@ $$;
 
 revoke all on function public.fin_mark_transfers_for(uuid) from public, anon, authenticated;
 grant execute on function public.fin_mark_transfers_for(uuid) to service_role;
+
+-- Your choices about a monthly payment, by merchant: subscription or
+-- bill, a link to manage it, or "not a subscription" (hidden). Anything
+-- not set here comes from the built-in list (js/services.js).
+create table if not exists public.fin_subscriptions (
+  user_id uuid not null default auth.uid() references auth.users (id) on delete cascade,
+  merchant text not null,
+  kind text check (kind in ('subscription', 'bill')),
+  url text check (url is null or url ~ '^https?://'),
+  hidden boolean not null default false,
+  updated_at timestamptz not null default now(),
+  primary key (user_id, merchant)
+);
+
+alter table public.fin_subscriptions enable row level security;
+
+drop policy if exists "Users manage their own subscription settings" on public.fin_subscriptions;
+create policy "Users manage their own subscription settings"
+  on public.fin_subscriptions
+  for all
+  to authenticated
+  using (user_id = (select auth.uid()))
+  with check (user_id = (select auth.uid()));
+
+revoke all on public.fin_subscriptions from anon;
+grant select, insert, update, delete on public.fin_subscriptions to authenticated;

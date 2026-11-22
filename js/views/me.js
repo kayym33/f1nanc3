@@ -1,8 +1,12 @@
-// The account, the bank connection, and the sign-in screen.
-const plural = (count, word) => `${count} ${word}${count === 1 ? "" : "s"}`;
+// Settings (the ⚙ at the top): the account, importing statements, the
+// bank connection (when it's switched on), the theme; and the sign-in
+// screen.
+import { BANK_CONNECTION } from "../config.js";
 import { dayLabel } from "../money.js";
 import { setTheme, theme, THEMES } from "../theme.js";
 import { action, button, esc, heading } from "../ui.js";
+
+const plural = (count, word) => `${count} ${word}${count === 1 ? "" : "s"}`;
 
 // Where the bank sends you back after you approve: this page's address
 // without its route (the server only accepts the real site and localhost).
@@ -56,6 +60,7 @@ function bankHtml(ctx) {
 // The banner every page shows while the connection needs you: in its last
 // 7 days, or once it's ended. Null otherwise.
 export function bankBanner(finance) {
+  if (!BANK_CONNECTION) return null;
   const link = finance.link;
   if (!link) return null;
   if (link.status === "expired") return `your bank connection has ended · <a href="#/me">connect again ›</a>`;
@@ -89,16 +94,16 @@ export async function finishConnecting(ctx, params) {
 export function render(ctx) {
   const count = ctx.finance.transactions.length;
   return {
-    crumbs: ["me"],
+    crumbs: ["settings"],
     html: `
       ${heading("account")}
       <p>${esc(ctx.cloud.session?.email ?? "")}</p>
       <p class="hint">your t1ld3 account</p>
       <div class="row-buttons">${button("reload", "reload")}${button("sign out", "me-sign-out")}</div>
-      ${heading("bank")}
-      ${bankHtml(ctx)}
-      ${heading("data")}
+      ${heading("statements")}
       <p>${plural(count, "transaction")}, kept for the current month and the 12 before it.</p>
+      <div class="row-buttons">${button("import a statement ›", "go", { to: "/import" }, { solid: true })}</div>
+      ${BANK_CONNECTION ? `${heading("bank")}${bankHtml(ctx)}` : ""}
       ${heading("theme")}
       <div class="chips">${THEMES.map((choice) => `<button type="button" class="chip${choice === theme() ? " on" : ""}" ${action("me-theme", { value: choice })}>${choice}</button>`).join("")}</div>
       <p class="hint">auto follows this device's light and dark mode; the choice is kept on this device only</p>

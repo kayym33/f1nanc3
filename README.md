@@ -28,13 +28,22 @@ serves it as it is.
   biggest single spend, month by month, the priciest day of the week, your
   longest run without eating out, regular payments and what was left. Tap
   or use the arrow keys; they also move on by themselves.
+- **Subs**: everything that comes out about once a month (three months or
+  more), split into subscriptions and bills, with the total a month and a
+  year, the next payment, and price rises. A built-in list of UK services
+  (js/services.js) names them and links to where you manage or cancel
+  them; add your own link for anything else, move anything between
+  subscriptions and bills, or hide what isn't one.
+- **Settings** (⚙ at the top): your account, importing statements, theme.
 - **Categories** are guessed from the merchant's name. Money moving
   between your own accounts (the same amount out of one and into another
   within a day) is marked as a transfer and left out of every total.
 - **13 months** are kept: the current month and the 12 before it. A daily
   job on the server deletes anything older.
 
-- **Bank connection** (Enable Banking): connect RBS once from **me**, and
+- **Bank connection** (Enable Banking, *parked*: its own-accounts mode
+  doesn't offer UK banks, so it's switched off with `BANK_CONNECTION` in
+  js/config.js): connect RBS once from **me**, and
   new transactions arrive every morning at 6am UK time, or on **sync now**.
   Connecting fetches as much history as the bank gives, up to 13 months.
   Bank and CSV transactions don't double up (same account, date and
