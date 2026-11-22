@@ -116,6 +116,10 @@ createServer(async (request, response) => {
     }
     return json(response, 201, added);
   }
+  if (route === "DELETE /rest/v1/fin_transactions") {
+    for (const [id, row] of [...transactions]) if (matches(row, url.searchParams)) transactions.delete(id);
+    return json(response, 204);
+  }
   if (route === "PATCH /rest/v1/fin_transactions") {
     for (const row of transactions.values()) if (matches(row, url.searchParams)) Object.assign(row, data);
     return json(response, 204);

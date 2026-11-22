@@ -249,3 +249,10 @@ grant select, insert, update, delete on public.fin_budget to authenticated;
 -- When you cancelled a subscription or bill (subs page): it counts as
 -- ended from then, unless it charges you again afterwards.
 alter table public.fin_subscriptions add column if not exists cancelled_on date;
+
+-- Money you've moved yourself and added by hand (settings: move money)
+-- before the statement shows it: source "manual". Importing the statement
+-- replaces them with the bank's own (js/manual.js).
+alter table public.fin_transactions drop constraint if exists fin_transactions_source_check;
+alter table public.fin_transactions add constraint fin_transactions_source_check
+  check (source in ('csv', 'bank', 'manual'));

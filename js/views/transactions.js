@@ -188,13 +188,15 @@ function detailHtml(t) {
         <div><dt>date</dt><dd>${esc(dayLabel(t.booked_on))} ${esc(t.booked_on.slice(0, 4))}</dd></div>
         <div><dt>account</dt><dd>${esc(nameOf(t.account))}${nameOf(t.account) !== t.account ? ` <span class="muted">${esc(t.account)}</span>` : ""}</dd></div>
         ${t.type ? `<div><dt>type</dt><dd>${esc(t.type)}</dd></div>` : ""}
+        ${t.source === "manual" ? `<div><dt>added</dt><dd>by hand, in settings · your next statement's own record will replace it</dd></div>` : ""}
         <div><dt>statement</dt><dd class="raw">${esc(t.description)}</dd></div>
       </dl>
       ${heading("category")}
       <div class="chips">${CATEGORIES.map((category) => `<button type="button" class="chip${category === t.category ? " on" : ""}" ${action("tx-category-set", { id: t.id, value: category })}>${esc(category)}</button>`).join("")}</div>
       <label class="remember"><input type="checkbox" data-part="remember" checked> every ${esc(name)} payment</label>
       <p class="hint">${esc(how)}</p>
-      <p class="error" data-part="error" hidden></p>`;
+      <p class="error" data-part="error" hidden></p>
+      ${t.source === "manual" ? `<div class="row-buttons bottom">${button("remove this move", "tx-remove-move", { id: t.id })}</div>` : ""}`;
 }
 
 function refreshList(ctx) {
@@ -232,6 +234,11 @@ export const actions = {
   "tx-more"(ctx) {
     state.limit += PAGE;
     refreshList(ctx);
+  },
+  async "tx-remove-move"(ctx, { id }) {
+    if (!confirm("remove this move (both its halves)?")) return;
+    await ctx.finance.removeMove(id);
+    ctx.go("/tx");
   },
   async "tx-category-set"(ctx, { id, value }) {
     const remember = document.querySelector('[data-part="remember"]')?.checked ?? false;

@@ -470,6 +470,8 @@ nav a.on::before { content: ""; position: absolute; left: 0; right: 0; top: 0; h
 .account-name .number { color: var(--muted); }
 .account-name input { padding: 6px 8px; }
 .balance-note { font-size: 12px; }
+.move-form .pair label .select-row { margin-top: 4px; }
+.move-form button[type="submit"] { margin-top: 14px; }
 
 /* The budget (views/budget.js) and the overview's budget box. */
 .goal .big { color: var(--ink); font-size: 24px; font-weight: 700; font-variant-numeric: tabular-nums; }

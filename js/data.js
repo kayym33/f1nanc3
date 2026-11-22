@@ -1,7 +1,9 @@
 // The signed-in user's transactions and category rules, loaded from
 // Supabase and kept in memory while the app is open. Nothing is stored on
 // the device itself: bank data stays on the server, behind the sign-in.
+import { latestBalances } from "./balances.js";
 import { notAlreadyThere } from "./bank.js";
+import { coveredByStatement, moveRows, partnerId } from "./manual.js";
 import { AuthError } from "./cloud.js";
 import { guessCategory, merchantOf } from "./categories.js";
 import { windowStart } from "./money.js";
@@ -138,6 +140,23 @@ export class Finance {
     this.changed();
   }
 
+  // Records money you've moved between your own accounts, before a
+  // statement shows it: {from, to, amount, date}.
+  async addMove({ from, to, amount, date }) {
+    const balances = new Map(latestBalances(this.transactions).map((b) => [b.account, b.balance]));
+    const names = new Map(this.accountList().map((account) => [account, this.accountName(account)]));
+    const rows = moveRows({ from, to, amount, date, balances, names });
+    await this.cloud.insertNew("fin_transactions", rows, "user_id,id");
+    await this.load();
+  }
+
+  // Removes a hand-added move: both its halves.
+  async removeMove(id) {
+    const ids = [id, partnerId(id)].filter(Boolean);
+    await this.cloud.remove("fin_transactions", { id: `in.(${ids.join(",")})` });
+    await this.load();
+  }
+
   // Asks the server to fetch from the bank now; returns how many were new.
   async syncBank() {
     const { added } = await this.cloud.callFunction("bank", { action: "sync" });
@@ -228,6 +247,10 @@ export class Finance {
       transactions.filter((t) => t.booked_on >= start),
       this.transactions.filter((t) => t.source === "bank"),
     );
+    // Money you moved and added by hand gives way to the statement's own
+    // record of it.
+    const covered = coveredByStatement(recent, this.transactions.filter((t) => t.source === "manual"));
+    if (covered.length) await this.cloud.remove("fin_transactions", { id: `in.(${covered.join(",")})` });
     const rows = recent.map((t) => {
       const { category, source } = guessCategory(t, this.rules);
       return { ...t, category, category_source: source, source: "csv" };

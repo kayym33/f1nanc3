@@ -93,6 +93,36 @@ export async function finishConnecting(ctx, params) {
   await ctx.finance.load();
 }
 
+// Record money you've moved between your accounts in your banking app,
+// so f1nanc3 (and the savings goal) shows it before the statement does.
+const moveState = { message: null, error: null };
+
+function moveHtml(ctx) {
+  const accounts = ctx.finance.accountList();
+  if (accounts.length < 2) return "";
+  const savings = accounts.find((account) => ctx.finance.accountKind(account) === "savings") ?? accounts[1];
+  const spending = accounts.find((account) => account !== savings) ?? accounts[0];
+  const options = (selected) => accounts.map((account) => `<option value="${esc(account)}"${account === selected ? " selected" : ""}>${esc(ctx.finance.accountName(account))}${ctx.finance.accountName(account) !== account ? ` (${esc(account)})` : ""}</option>`).join("");
+  const today = new Date();
+  const date = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, "0")}-${String(today.getDate()).padStart(2, "0")}`;
+  return `
+    ${heading("move money")}
+    <p class="hint">moved money in your banking app? add it here and it shows straight away. When the statement comes in, its own record replaces this one, so nothing counts twice.</p>
+    ${moveState.message ? `<p class="flash">${esc(moveState.message)}</p>` : ""}
+    ${moveState.error ? `<p class="error">${esc(moveState.error)}</p>` : ""}
+    <form class="editor move-form" data-form="move-money">
+      <div class="pair">
+        <label>from<span class="select-row"><select name="from">${options(spending)}</select><span class="caret" aria-hidden="true">▾</span></span></label>
+        <label>to<span class="select-row"><select name="to">${options(savings)}</select><span class="caret" aria-hidden="true">▾</span></span></label>
+      </div>
+      <div class="pair">
+        <label>amount<input name="amount" type="text" inputmode="decimal" placeholder="£" required autocomplete="off"></label>
+        <label>date<input name="date" type="date" value="${date}" required></label>
+      </div>
+      <button type="submit" class="button solid">add the move</button>
+    </form>`;
+}
+
 // Each account: its name, and whether it's money to spend or savings.
 function accountsHtml(ctx) {
   const accounts = ctx.finance.accountList();
@@ -131,6 +161,7 @@ export function render(ctx) {
       <p>${plural(count, "transaction")}, kept for the current month and the 12 before it.</p>
       <div class="row-buttons">${button("import a statement ›", "go", { to: "/import" }, { solid: true })}</div>
       ${accountsHtml(ctx)}
+      ${moveHtml(ctx)}
       ${BANK_CONNECTION ? `${heading("bank")}${bankHtml(ctx)}` : ""}
       ${heading("theme")}
       <div class="chips">${THEMES.map((choice) => `<button type="button" class="chip${choice === theme() ? " on" : ""}" ${action("me-theme", { value: choice })}>${choice}</button>`).join("")}</div>
@@ -221,6 +252,24 @@ export function renderSignIn() {
 }
 
 export const forms = {
+  async "move-money"(ctx, form) {
+    moveState.message = null;
+    moveState.error = null;
+    const from = form.elements.from.value;
+    const to = form.elements.to.value;
+    const amount = Number(String(form.elements.amount.value).replace(/[£,\s]/g, ""));
+    const date = form.elements.date.value;
+    if (from === to) moveState.error = "pick two different accounts";
+    else if (!Number.isFinite(amount) || amount <= 0) moveState.error = "that amount doesn't look right";
+    if (moveState.error) return ctx.render();
+    try {
+      await ctx.finance.addMove({ from, to, amount, date });
+      moveState.message = `moved £${amount.toLocaleString("en-GB", { minimumFractionDigits: 2, maximumFractionDigits: 2 })} from ${ctx.finance.accountName(from)} to ${ctx.finance.accountName(to)}`;
+    } catch (problem) {
+      moveState.error = problem.message;
+    }
+    ctx.render();
+  },
   async "account-name"(ctx, form) {
     const name = form.elements.name.value.trim() || null;
     await ctx.finance.saveAccount(form.dataset.account, { name }).catch((problem) => alert(problem.message));

@@ -12,6 +12,7 @@ import { monthSummary } from "../js/summary.js";
 import { latestBalances } from "../js/balances.js";
 import { biggestNonEssentials, budgetsFor, dailyAllowance, fullMonths, monthProgress, outlook, typicalSpending } from "../js/budget.js";
 import { expectedIncome, monthlyIncome, regularIncome } from "../js/income.js";
+import { coveredByStatement, moveRows, partnerId } from "../js/manual.js";
 import { categoryGrid, gridCsv, inOut, months as trendMonths, niceCeiling, pace } from "../js/trends.js";
 import { longestWithout, regularPayments, yearStats } from "../js/wrapped.js";
 
@@ -435,6 +436,32 @@ await check("all the money you can count on", () => {
   assert.equal(saas.outOf, 12);
   assert.equal(saas.monthly, 583.33);
   assert.equal(income.total, 3033.33);
+});
+
+await check("money moved by hand", () => {
+  const [out, into] = moveRows({
+    from: "…5231", to: "…4720", amount: "2000", date: "2026-11-22",
+    balances: new Map([["…5231", 2500], ["…4720", 18]]), names: new Map([["…5231", "current"], ["…4720", "savings"]]),
+  });
+  assert.equal(out.amount, -2000);
+  assert.equal(into.amount, 2000);
+  assert.equal(out.balance, 500);
+  assert.equal(into.balance, 2018);
+  assert.equal(out.category, "transfers");
+  assert.equal(into.source, "manual");
+  assert.equal(out.description, "Moved to savings (added by hand)");
+  assert.equal(partnerId(out.id), into.id);
+  assert.equal(partnerId(into.id), out.id);
+  assert.equal(partnerId("abc"), null);
+  // The new balances count straight away.
+  assert.deepEqual(latestBalances([{ account: "…4720", booked_on: "2026-11-16", amount: -5, balance: 18 }, into]), [{ account: "…4720", balance: 2018, date: "2026-11-22" }]);
+  // The statement's own record replaces it: same account and amount within a few days.
+  const statement = [
+    { account: "…5231", booked_on: "2026-11-23", amount: -2000 },
+    { account: "…5231", booked_on: "2026-11-23", amount: -2000 },
+    { account: "…4720", booked_on: "2026-12-10", amount: 2000 },
+  ];
+  assert.deepEqual(coveredByStatement(statement, [out, into]), [out.id]);
 });
 
 await check("latest balances", () => {
