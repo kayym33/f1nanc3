@@ -107,6 +107,6 @@ Deno.serve(async (request) => {
     }
   } catch (error) {
     const status = error instanceof BankError ? (error.status >= 400 && error.status < 600 ? error.status : 502) : 500;
-    return json({ error: error instanceof Error ? error.message : String(error) }, status);
+    return json({ error: "bank request failed" }, status);
   }
 });
