@@ -1,9 +1,8 @@
 // A month at a glance: money in and out, spending by category, and the
 // latest transactions.
 import { latestBalances } from "../balances.js";
-import { expectedIncome, monthlyIncome } from "../income.js";
-import { paydayNudge } from "../payday.js";
-import { billDays, findSubscriptions } from "../subscriptions.js";
+import { expectedIncome } from "../income.js";
+import { paydayState } from "../insights.js";
 import { addMonths, dayLabel, monthLabel, monthOf, pounds, windowMonths } from "../money.js";
 import { monthSummary } from "../summary.js";
 import { action, bar, button, esc, heading, notReady } from "../ui.js";
@@ -28,25 +27,9 @@ function nudgeDone(month) {
 function nudgeHtml(ctx) {
   const month = monthOf(new Date());
   if (nudgeDone(month)) return "";
-  const { transactions } = ctx.finance;
-  const main = monthlyIncome(transactions).sources[0];
-  const pay = main && expectedIncome(transactions).find((p) => p.name === main.name);
-  if (!pay) return "";
-  const today = new Date().getDate();
-  const balances = latestBalances(transactions);
-  const spendingAccounts = balances.filter((b) => ctx.finance.accountKind(b.account) === "spending");
-  if (!spendingAccounts.length || !balances.some((b) => ctx.finance.accountKind(b.account) === "savings")) return "";
-  const spending = spendingAccounts.reduce((sum, b) => sum + b.balance, 0);
-  const billsBefore = billDays(findSubscriptions(transactions, ctx.finance.subscriptionSettings))
-    .filter((mark) => !mark.gone && mark.day >= today && mark.day < pay.day)
-    .reduce((sum, mark) => sum + mark.amount, 0);
-  const picture = budgetPicture(ctx);
-  const monthly = picture.plan ? Object.values(picture.budgets).reduce((a, b) => a + b, 0) : picture.typicalTotal;
-  const nudge = paydayNudge({ today, payDay: pay.day, spending, billsBefore, dailySpend: monthly / 30 });
-  if (!nudge) return "";
-  // The newest import: an account with nothing new isn't out of date.
-  const asOf = spendingAccounts.map((b) => b.date).sort().at(-1);
-  const stale = (Date.now() - Date.parse(`${asOf}T12:00:00`)) / 86400000 > 3;
+  const state = paydayState(ctx.finance.insightData());
+  if (!state) return "";
+  const { nudge, asOf, stale } = state;
   const when = nudge.days === 0 ? "payday's today" : nudge.days === 1 ? "payday's tomorrow" : `payday's in ${nudge.days} days`;
   return `
     <div class="nudge">

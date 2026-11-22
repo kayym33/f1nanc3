@@ -135,6 +135,7 @@ function render() {
   window.scrollTo(0, scroll);
   // Views that draw once they're on the page (the river's canvas).
   result.mounted?.();
+  if (signedIn && current.name === "me") me.mounted();
   if (focus) {
     const field = main.querySelector(focus.key);
     if (field) {

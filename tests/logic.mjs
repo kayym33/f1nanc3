@@ -14,6 +14,7 @@ import { biggestNonEssentials, budgetsFor, dailyAllowance, fullMonths, monthProg
 import { expectedIncome, monthlyIncome, regularIncome } from "../js/income.js";
 import { coveredByStatement, moveRows, partnerId } from "../js/manual.js";
 import { paydayNudge } from "../js/payday.js";
+import { alertsFor } from "../js/insights.js";
 import { categoryGrid, gridCsv, inOut, months as trendMonths, niceCeiling, pace } from "../js/trends.js";
 import { longestWithout, regularPayments, yearStats } from "../js/wrapped.js";
 
@@ -476,6 +477,37 @@ await check("the nudge before payday", () => {
   // Not enough to bother.
   assert.equal(paydayNudge({ today: 25, payDay: 26, spending: 430 }), null);
   assert.equal(paydayNudge({ today: 25, payDay: null, spending: 3000 }), null);
+});
+
+await check("which alerts go out", () => {
+  const t = (booked_on, amount, category, merchant, extra = {}) => ({ booked_on, amount, category, merchant, account: "…1111", balance: null, ...extra });
+  const list = [];
+  for (const month of ["2026-06", "2026-07", "2026-08", "2026-09", "2026-10"]) {
+    list.push(t(`${month}-26`, 2400, "income", "employer"));
+    // Everyday spending, a few times a month (not subscriptions).
+    for (const day of ["04", "11", "18"]) list.push(t(`${month}-${day}`, -100 / 3, "eating out", "deliveroo"));
+    for (const day of ["02", "09", "16", "23"]) list.push(t(`${month}-${day}`, -50, "groceries", "tesco"));
+  }
+  // November so far: eating out at £85 of a £90 budget, groceries over.
+  list.push(t("2026-11-05", -85, "eating out", "deliveroo"));
+  list.push(t("2026-11-06", -260, "groceries", "tesco"));
+  // Balances: £1,500 to spend, savings marked.
+  list.push(t("2026-11-20", -10, "other", "x", { balance: 1500 }));
+  list.push(t("2026-11-20", 5, "income", "interest", { account: "…3333", balance: 200 }));
+  const data = {
+    transactions: list,
+    subscriptionSettings: new Map(),
+    accountKinds: new Map([["…3333", "savings"]]),
+    budget: { plan: "steady", amounts: {} },
+  };
+  const alerts = alertsFor(data, new Date(2026, 10, 24));
+  assert.deepEqual(alerts.map((a) => a.key), ["budget:2026-11:groceries:over", "budget:2026-11:eating out:80", "payday:2026-11"]);
+  assert.equal(alerts[1].title, "eating out is at 94%");
+  assert.equal(alerts[1].body, "£85 of its £90 budget, with 6 days to go");
+  assert.equal(alerts[2].title, "Payday's in 2 days");
+  assert.ok(alerts[2].body.startsWith("About £"));
+  // Before payday's close, no nudge.
+  assert.ok(!alertsFor(data, new Date(2026, 10, 15)).some((a) => a.key.startsWith("payday")));
 });
 
 await check("latest balances", () => {

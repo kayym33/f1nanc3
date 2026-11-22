@@ -124,6 +124,11 @@ createServer(async (request, response) => {
     for (const row of transactions.values()) if (matches(row, url.searchParams)) Object.assign(row, data);
     return json(response, 204);
   }
+  // Notifications: no real push service here, so nothing is sent.
+  if (route === "GET /functions/v1/fin-push") return json(response, 200, { vapid_public_key: null });
+  if (route === "POST /functions/v1/fin-push") return json(response, 200, { sent: 0 });
+  if (route === "POST /functions/v1/fin-alerts") return json(response, 200, { sent: 0 });
+  if (route === "POST /rest/v1/fin_push_subscriptions" || route === "DELETE /rest/v1/fin_push_subscriptions") return json(response, 201);
   if (route === "GET /rest/v1/fin_budget") return json(response, 200, budget ? [budget] : []);
   if (route === "POST /rest/v1/fin_budget") {
     budget = { plan: data[0].plan, amounts: data[0].amounts };

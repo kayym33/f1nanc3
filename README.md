@@ -60,7 +60,10 @@ serves it as it is.
   Bank and CSV transactions don't double up (same account, date and
   amount). A banner shows from 7 days before the bank's approval runs out.
 
-Coming next: the 80% budget alert as a phone and desktop notification.
+- **Notifications** (settings → notifications, per device; on an iPhone,
+  the home-screen app): a budget category at 80% and over, and a nudge
+  before payday to move what's spare to savings. Checked at 9am every day
+  and straight after an import; each alert goes once a month.
 
 ## Setting it up (once)
 

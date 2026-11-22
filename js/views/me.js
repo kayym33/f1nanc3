@@ -6,6 +6,7 @@ import { dayLabel } from "../money.js";
 import { CHART_STYLES, chartStyle, setChartStyle } from "../chartstyle.js";
 import { setTheme, theme, THEMES } from "../theme.js";
 import { latestBalances } from "../balances.js";
+import { disablePush, enablePush, pushStatus } from "../push.js";
 import { action, button, esc, heading } from "../ui.js";
 
 const plural = (count, word) => `${count} ${word}${count === 1 ? "" : "s"}`;
@@ -93,6 +94,47 @@ export async function finishConnecting(ctx, params) {
   await ctx.finance.load();
 }
 
+// Notifications on this device: filled in once the page is up, since
+// checking is asynchronous.
+const pushState = { status: "checking", message: null, error: null };
+
+function notificationsHtml() {
+  const note = pushState.message ? `<p class="flash">${esc(pushState.message)}</p>` : "";
+  const error = pushState.error ? `<p class="error">${esc(pushState.error)}</p>` : "";
+  const about = `<p class="hint">budgets at 80% and over, and a nudge before payday to move what's spare to savings; checked every morning at 9 and straight after an import</p>`;
+  switch (pushState.status) {
+    case "on":
+      return `${note}${error}<p>on for this device.</p>${about}<div class="row-buttons">${button("send a test", "push-test")}${button("turn off", "push-off")}</div>`;
+    case "install":
+      return `<p>on an iPhone, add f1nanc3 to your home screen first: tap <b>share</b> in Safari, then <b>add to home screen</b>, and open it from there.</p>${about}`;
+    case "blocked":
+      return `${error}<p>blocked: allow notifications for f1nanc3 in this device's settings, then come back.</p>`;
+    case "unsupported":
+      return `<p>this browser can't receive notifications.</p>`;
+    case "checking":
+      return `<p class="muted">checking...</p>`;
+    default:
+      return `${note}${error}<p>off for this device.</p>${about}<div class="row-buttons">${button("turn on", "push-on", {}, { solid: true })}</div>`;
+  }
+}
+
+export async function mounted() {
+  pushState.status = await pushStatus().catch(() => "unsupported");
+  const part = document.querySelector('[data-part="notifications"]');
+  if (part) part.innerHTML = notificationsHtml();
+}
+
+async function pushAction(work) {
+  pushState.message = null;
+  pushState.error = null;
+  try {
+    await work();
+  } catch (problem) {
+    pushState.error = problem.message ?? String(problem);
+  }
+  await mounted();
+}
+
 // Record money you've moved between your accounts in your banking app,
 // so f1nanc3 (and the savings goal) shows it before the statement does.
 const moveState = { message: null, error: null };
@@ -163,6 +205,8 @@ export function render(ctx, params = {}) {
       ${accountsHtml(ctx)}
       ${moveHtml(ctx, params.move ?? "")}
       ${BANK_CONNECTION ? `${heading("bank")}${bankHtml(ctx)}` : ""}
+      ${heading("notifications")}
+      <div data-part="notifications">${notificationsHtml()}</div>
       ${heading("theme")}
       <div class="chips">${THEMES.map((choice) => `<button type="button" class="chip${choice === theme() ? " on" : ""}" ${action("me-theme", { value: choice })}>${choice}</button>`).join("")}</div>
       <p class="hint">auto follows this device's light and dark mode; the choice is kept on this device only</p>
@@ -174,6 +218,22 @@ export function render(ctx, params = {}) {
 }
 
 export const actions = {
+  "push-on"(ctx) {
+    return pushAction(async () => {
+      await enablePush(ctx.cloud);
+      pushState.message = "notifications are on: try sending a test";
+    });
+  },
+  "push-off"(ctx) {
+    return pushAction(() => disablePush(ctx.cloud));
+  },
+  "push-test"(ctx) {
+    return pushAction(async () => {
+      const sent = await ctx.cloud.sendTestPush();
+      if (!sent) throw new Error("the server couldn't reach this device: try turning notifications off and on");
+      pushState.message = "sent: it should arrive in a few seconds";
+    });
+  },
   async "account-kind"(ctx, { account, value }) {
     await ctx.finance.saveAccount(account, { kind: value }).catch((problem) => alert(problem.message));
   },

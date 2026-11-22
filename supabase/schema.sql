@@ -256,3 +256,39 @@ alter table public.fin_subscriptions add column if not exists cancelled_on date;
 alter table public.fin_transactions drop constraint if exists fin_transactions_source_check;
 alter table public.fin_transactions add constraint fin_transactions_source_check
   check (source in ('csv', 'bank', 'manual'));
+
+-- Notifications. f1nanc3 keeps its own list of devices, apart from
+-- t1ld3's push_subscriptions, so neither app's alerts turn up in the other.
+create table if not exists public.fin_push_subscriptions (
+  user_id uuid not null default auth.uid() references auth.users (id) on delete cascade,
+  endpoint text not null,
+  p256dh text not null,
+  auth text not null,
+  created_at timestamptz not null default now(),
+  primary key (user_id, endpoint)
+);
+
+alter table public.fin_push_subscriptions enable row level security;
+
+drop policy if exists "Users manage their own f1nanc3 devices" on public.fin_push_subscriptions;
+create policy "Users manage their own f1nanc3 devices"
+  on public.fin_push_subscriptions
+  for all
+  to authenticated
+  using (user_id = (select auth.uid()))
+  with check (user_id = (select auth.uid()));
+
+revoke all on public.fin_push_subscriptions from anon;
+grant select, insert, update, delete on public.fin_push_subscriptions to authenticated;
+
+-- Alerts already sent ("budget:2026-11:eating out:80", "payday:2026-11"),
+-- so each goes once. Only the server functions read and write it.
+create table if not exists public.fin_alerts_sent (
+  user_id uuid not null references auth.users (id) on delete cascade,
+  key text not null,
+  sent_at timestamptz not null default now(),
+  primary key (user_id, key)
+);
+
+alter table public.fin_alerts_sent enable row level security;
+revoke all on public.fin_alerts_sent from anon, authenticated;

@@ -100,6 +100,16 @@ export class Finance {
     }
   }
 
+  // What insights.js works from (the same shape the server builds).
+  insightData() {
+    return {
+      transactions: this.transactions,
+      subscriptionSettings: this.subscriptionSettings,
+      accountKinds: new Map([...this.accounts].map(([account, row]) => [account, row.kind ?? "spending"])),
+      budget: this.budget,
+    };
+  }
+
   // "current" for "…5231" once you've named it; "…5231" until then.
   accountName(account) {
     return this.accounts.get(account)?.name || account;
@@ -257,6 +267,10 @@ export class Finance {
     });
     const added = await this.cloud.insertNew("fin_transactions", rows, "user_id,id");
     if (added) await this.cloud.rpc("fin_mark_transfers");
+    // New transactions may have tipped a budget over 80%: tell the server
+    // to check now rather than at 9am. Notifications are a bonus; an
+    // import never fails because of them.
+    if (added) this.cloud.checkAlerts().catch(() => {});
     await this.load();
     const tooOld = transactions.filter((t) => t.booked_on < start).length;
     return { added, already: transactions.length - tooOld - added, tooOld };
