@@ -12,6 +12,9 @@ import { monthSummary } from "../js/summary.js";
 import { latestBalances } from "../js/balances.js";
 import { biggestNonEssentials, budgetsFor, dailyAllowance, fullMonths, monthProgress, outlook, typicalSpending } from "../js/budget.js";
 import { expectedIncome, monthlyIncome, regularIncome } from "../js/income.js";
+import { coveredByStatement, moveRows, partnerId } from "../js/manual.js";
+import { paydayNudge } from "../js/payday.js";
+import { alertsFor } from "../js/insights.js";
 import { categoryGrid, gridCsv, inOut, months as trendMonths, niceCeiling, pace } from "../js/trends.js";
 import { longestWithout, regularPayments, yearStats } from "../js/wrapped.js";
 
@@ -437,6 +440,78 @@ await check("all the money you can count on", () => {
   assert.equal(income.total, 3033.33);
 });
 
+await check("money moved by hand", () => {
+  const [out, into] = moveRows({
+    from: "…5231", to: "…4720", amount: "2000", date: "2026-11-22",
+    balances: new Map([["…5231", 2500], ["…4720", 18]]), names: new Map([["…5231", "current"], ["…4720", "savings"]]),
+  });
+  assert.equal(out.amount, -2000);
+  assert.equal(into.amount, 2000);
+  assert.equal(out.balance, 500);
+  assert.equal(into.balance, 2018);
+  assert.equal(out.category, "transfers");
+  assert.equal(into.source, "manual");
+  assert.equal(out.description, "Moved to savings (added by hand)");
+  assert.equal(partnerId(out.id), into.id);
+  assert.equal(partnerId(into.id), out.id);
+  assert.equal(partnerId("abc"), null);
+  // The new balances count straight away.
+  assert.deepEqual(latestBalances([{ account: "…4720", booked_on: "2026-11-16", amount: -5, balance: 18 }, into]), [{ account: "…4720", balance: 2018, date: "2026-11-22" }]);
+  // The statement's own record replaces it: same account and amount within a few days.
+  const statement = [
+    { account: "…5231", booked_on: "2026-11-23", amount: -2000 },
+    { account: "…5231", booked_on: "2026-11-23", amount: -2000 },
+    { account: "…4720", booked_on: "2026-12-10", amount: 2000 },
+  ];
+  assert.deepEqual(coveredByStatement(statement, [out, into]), [out.id]);
+});
+
+await check("the nudge before payday", () => {
+  // Payday the 26th, today the 23rd: £2,500 in, £96.95 of bills to come,
+  // about £20 a day: keeps £96.95 + £60 + £400 back, moves £1,900.
+  assert.deepEqual(paydayNudge({ today: 23, payDay: 26, spending: 2500, billsBefore: 96.95, dailySpend: 20 }), { days: 3, suggest: 1900, keep: 557 });
+  // Too early in the month.
+  assert.equal(paydayNudge({ today: 20, payDay: 26, spending: 2500 }), null);
+  // Pay's late: still showing, nothing to keep for days ahead.
+  assert.equal(paydayNudge({ today: 28, payDay: 28, spending: 1000, dailySpend: 20 }).suggest, 600);
+  // Not enough to bother.
+  assert.equal(paydayNudge({ today: 25, payDay: 26, spending: 430 }), null);
+  assert.equal(paydayNudge({ today: 25, payDay: null, spending: 3000 }), null);
+});
+
+await check("which alerts go out", () => {
+  const t = (booked_on, amount, category, merchant, extra = {}) => ({ booked_on, amount, category, merchant, account: "…1111", balance: null, ...extra });
+  const list = [];
+  for (const month of ["2026-06", "2026-07", "2026-08", "2026-09", "2026-10"]) {
+    list.push(t(`${month}-26`, 2400, "income", "employer"));
+    // Everyday spending, a few times a month (not subscriptions).
+    for (const day of ["04", "11", "18"]) list.push(t(`${month}-${day}`, -100 / 3, "eating out", "deliveroo"));
+    for (const day of ["02", "09", "16", "23"]) list.push(t(`${month}-${day}`, -50, "groceries", "tesco"));
+  }
+  // November so far: eating out at £85 of a £90 budget, groceries over.
+  list.push(t("2026-11-05", -85, "eating out", "deliveroo"));
+  list.push(t("2026-11-06", -260, "groceries", "tesco"));
+  // Balances: £1,500 to spend, savings marked.
+  list.push(t("2026-11-20", -10, "other", "x", { balance: 1500 }));
+  list.push(t("2026-11-20", 5, "income", "interest", { account: "…3333", balance: 200 }));
+  const data = {
+    transactions: list,
+    subscriptionSettings: new Map(),
+    accountKinds: new Map([["…3333", "savings"]]),
+    budget: { plan: "steady", amounts: {} },
+  };
+  const alerts = alertsFor(data, new Date(2026, 10, 24));
+  assert.deepEqual(alerts.map((a) => a.key), ["budget:2026-11:groceries:over", "budget:2026-11:eating out:80", "payday:2026-11"]);
+  assert.equal(alerts[1].title, "eating out is at 94%");
+  assert.equal(alerts[1].body, "of this month's budget, with 6 days to go");
+  // Never an amount: notifications show on lock screens.
+  for (const alert of alerts) assert.ok(!/£|\d+\.\d\d/.test(alert.title + alert.body), `${alert.key} shows money`);
+  assert.equal(alerts[2].title, "Payday's in 2 days");
+  assert.ok(alerts[2].body.startsWith("there's money spare"));
+  // Before payday's close, no nudge.
+  assert.ok(!alertsFor(data, new Date(2026, 10, 15)).some((a) => a.key.startsWith("payday")));
+});
+
 await check("latest balances", () => {
   const t = (account, booked_on, amount, balance) => ({ account, booked_on, amount, balance });
   // Stored out of order on the last day; the chain says 470 is last.
@@ -492,6 +567,50 @@ await check("the budget", () => {
   // £75 + £10 left over 9 days (the 22nd to the 30th).
   assert.equal(dailyAllowance(progress, today), 9.44);
   assert.deepEqual(biggestNonEssentials(list, fixed, today).map((row) => row.merchant), ["wedding", "deliveroo"]);
+});
+
+await check("the PIN lock", async () => {
+  // A stand-in for the browser's storage.
+  const store = () => { const map = new Map(); return { getItem: (k) => map.get(k) ?? null, setItem: (k, v) => map.set(k, String(v)), removeItem: (k) => map.delete(k) }; };
+  globalThis.localStorage = store();
+  globalThis.sessionStorage = store();
+  const pin = await import("../js/pin.js");
+  assert.equal(pin.validPin("12345"), true);
+  assert.equal(pin.validPin("123"), false);
+  assert.equal(pin.validPin("12a4"), false);
+  assert.equal(pin.isLocked(), false);
+  await pin.setPin("2468");
+  // The PIN itself is never stored, only a salted hash.
+  assert.ok(!localStorage.getItem("f1nanc3.pin").includes("2468"));
+  assert.equal(pin.pinLength(), 4);
+  assert.equal(pin.isLocked(), false);
+  // Five minutes away locks it.
+  assert.equal(pin.isLocked(Date.now() + pin.LOCK_AFTER_MS + 1000), true);
+  pin.lockNow();
+  assert.equal(pin.isLocked(), true);
+  assert.equal(await pin.checkPin("1111"), "wrong");
+  assert.equal(await pin.checkPin("2468"), "ok");
+  assert.equal(pin.isLocked(), false);
+  // Five wrong tries in a row: then a wait; ten: sign out.
+  const start = Date.now();
+  for (let i = 0; i < 5; i++) assert.equal(await pin.checkPin("0000", start), "wrong");
+  assert.equal(await pin.checkPin("2468", start + 1000), "wait");
+  let now = start;
+  for (let i = 5; i < 9; i++) { now += pin.WAIT_MS + 1; assert.equal(await pin.checkPin("0000", now), "wrong"); }
+  now += pin.WAIT_MS + 1;
+  assert.equal(await pin.checkPin("0000", now), "signout");
+  pin.clearPin();
+  assert.equal(pin.hasPin(), false);
+});
+
+await check("the page's security policy allows its own inline script", async () => {
+  const { readFile } = await import("node:fs/promises");
+  const { createHash } = await import("node:crypto");
+  const html = await readFile(new URL("../index.html", import.meta.url), "utf8");
+  const script = html.match(/<script>([\s\S]*?)<\/script>/)[1];
+  const hash = createHash("sha256").update(script).digest("base64");
+  assert.ok(html.includes(`'sha256-${hash}'`), "index.html's inline script changed: update its hash in the Content-Security-Policy");
+  assert.ok(!/<script>[\s\S]*?<\/script>[\s\S]*<script>/.test(html), "only one inline script is allowed");
 });
 
 if (failures) {

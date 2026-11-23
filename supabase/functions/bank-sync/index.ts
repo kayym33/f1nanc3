@@ -5,6 +5,7 @@
 // expired.
 import { createClient } from "npm:@supabase/supabase-js@2.45.4";
 import { type Link, syncLink } from "../_shared/sync.ts";
+import { sameSecret } from "../_shared/secret.ts";
 
 function json(data: unknown, status = 200): Response {
   return new Response(JSON.stringify(data), { status, headers: { "Content-Type": "application/json" } });
@@ -16,7 +17,7 @@ function ukHour(now: Date): number {
 
 Deno.serve(async (request) => {
   const secret = Deno.env.get("CRON_SECRET");
-  if (!secret || request.headers.get("x-cron-secret") !== secret) return json({ error: "not allowed" }, 401);
+  if (!secret || !sameSecret(request.headers.get("x-cron-secret"), secret)) return json({ error: "not allowed" }, 401);
   let force = false;
   try {
     force = Boolean((await request.json())?.force);

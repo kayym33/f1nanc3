@@ -60,7 +60,17 @@ serves it as it is.
   Bank and CSV transactions don't double up (same account, date and
   amount). A banner shows from 7 days before the bank's approval runs out.
 
-Coming next: the 80% budget alert as a phone and desktop notification.
+- **Notifications** (settings → notifications, per device; on an iPhone,
+  the home-screen app): a budget category at 80% and over, and a nudge
+  before payday to move what's spare to savings. Checked at 9am every day
+  and straight after an import; each alert goes once a month. They never
+  include amounts.
+
+- **PIN lock** (settings → PIN lock, per device): asks for a 4–6 digit PIN
+  when f1nanc3 opens and after 5 minutes away, and loads nothing until
+  it's right. 10 wrong tries signs you out.
+- **Privacy mode**: the eye at the top shows every amount as £xxx.xx, charts and the
+  river included, until you tap it again.
 
 ## Setting it up (once)
 

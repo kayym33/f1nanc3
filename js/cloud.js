@@ -124,7 +124,9 @@ export class Cloud {
     saveSession(null);
     if (!session) return;
     try {
-      await this.request("POST", "/auth/v1/logout", undefined, {
+      // scope=local: just this device. Supabase's default signs out every
+      // device, t1ld3 included.
+      await this.request("POST", "/auth/v1/logout?scope=local", undefined, {
         headers: { Authorization: `Bearer ${session.access_token}` },
         authorized: false,
       });
@@ -218,6 +220,33 @@ export class Cloud {
     await this.request("DELETE", `/rest/v1/${table}?${params}`, undefined, {
       headers: { Prefer: "return=minimal" },
     });
+  }
+
+  // Notifications (supabase/functions/fin-push, fin_push_subscriptions).
+
+  async vapidKey() {
+    const data = await this.request("GET", "/functions/v1/fin-push");
+    return data?.vapid_public_key ?? null;
+  }
+
+  async saveDevice(subscription) {
+    const json = subscription.toJSON();
+    await this.upsert("fin_push_subscriptions", [{ endpoint: json.endpoint, p256dh: json.keys.p256dh, auth: json.keys.auth }], "user_id,endpoint");
+  }
+
+  async deleteDevice(endpoint) {
+    await this.remove("fin_push_subscriptions", { endpoint: `eq.${endpoint}` });
+  }
+
+  // Returns how many devices it reached.
+  async sendTestPush() {
+    const data = await this.request("POST", "/functions/v1/fin-push", { test: 1 });
+    return Number(data?.sent ?? 0);
+  }
+
+  // Asks the server to send any alerts that are due now (after an import).
+  async checkAlerts() {
+    return this.request("POST", "/functions/v1/fin-alerts", {});
   }
 
   // POST to one of f1nanc3's server functions (supabase/functions).

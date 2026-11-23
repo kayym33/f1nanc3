@@ -6,6 +6,8 @@ import { dayLabel } from "../money.js";
 import { CHART_STYLES, chartStyle, setChartStyle } from "../chartstyle.js";
 import { setTheme, theme, THEMES } from "../theme.js";
 import { latestBalances } from "../balances.js";
+import { checkPin, clearPin, hasPin, setPin, validPin } from "../pin.js";
+import { disablePush, enablePush, pushStatus } from "../push.js";
 import { action, button, esc, heading } from "../ui.js";
 
 const plural = (count, word) => `${count} ${word}${count === 1 ? "" : "s"}`;
@@ -93,6 +95,100 @@ export async function finishConnecting(ctx, params) {
   await ctx.finance.load();
 }
 
+// The PIN lock on this device (js/pin.js).
+const pinState = { message: null, error: null };
+
+function pinHtml() {
+  const note = pinState.message ? `<p class="flash">${esc(pinState.message)}</p>` : "";
+  const error = pinState.error ? `<p class="error">${esc(pinState.error)}</p>` : "";
+  const field = (name, label) => `<label>${label}<input name="${name}" type="password" inputmode="numeric" pattern="[0-9]*" maxlength="6" autocomplete="off" required></label>`;
+  if (!hasPin()) {
+    return `${note}${error}
+      <p>ask for a PIN every time f1nanc3 opens on this device, and after 5 minutes away.</p>
+      <form class="editor pin-form" data-form="pin-set">
+        <div class="pair">${field("pin", "new PIN (4–6 digits)")}${field("again", "again")}</div>
+        <button type="submit" class="button solid">set PIN</button>
+      </form>`;
+  }
+  return `${note}${error}
+    <p>on: f1nanc3 asks for your PIN when it opens on this device, and after 5 minutes away. 10 wrong tries signs you out.</p>
+    <form class="editor pin-form" data-form="pin-change">
+      <div class="pair">${field("current", "current PIN")}${field("pin", "new PIN")}</div>
+      <div class="row-buttons"><button type="submit" class="button">change PIN</button><button type="submit" class="button" name="remove" value="1">remove PIN</button></div>
+    </form>`;
+}
+
+// Notifications on this device: filled in once the page is up, since
+// checking is asynchronous.
+const pushState = { status: "checking", message: null, error: null };
+
+function notificationsHtml() {
+  const note = pushState.message ? `<p class="flash">${esc(pushState.message)}</p>` : "";
+  const error = pushState.error ? `<p class="error">${esc(pushState.error)}</p>` : "";
+  const about = `<p class="hint">budgets at 80% and over, and a nudge before payday to move what's spare to savings; checked every morning at 9 and straight after an import</p>`;
+  switch (pushState.status) {
+    case "on":
+      return `${note}${error}<p>on for this device.</p>${about}<div class="row-buttons">${button("send a test", "push-test")}${button("turn off", "push-off")}</div>`;
+    case "install":
+      return `<p>on an iPhone, add f1nanc3 to your home screen first: tap <b>share</b> in Safari, then <b>add to home screen</b>, and open it from there.</p>${about}`;
+    case "blocked":
+      return `${error}<p>blocked: allow notifications for f1nanc3 in this device's settings, then come back.</p>`;
+    case "unsupported":
+      return `<p>this browser can't receive notifications.</p>`;
+    case "checking":
+      return `<p class="muted">checking...</p>`;
+    default:
+      return `${note}${error}<p>off for this device.</p>${about}<div class="row-buttons">${button("turn on", "push-on", {}, { solid: true })}</div>`;
+  }
+}
+
+export async function mounted() {
+  pushState.status = await pushStatus().catch(() => "unsupported");
+  const part = document.querySelector('[data-part="notifications"]');
+  if (part) part.innerHTML = notificationsHtml();
+}
+
+async function pushAction(work) {
+  pushState.message = null;
+  pushState.error = null;
+  try {
+    await work();
+  } catch (problem) {
+    pushState.error = problem.message ?? String(problem);
+  }
+  await mounted();
+}
+
+// Record money you've moved between your accounts in your banking app,
+// so f1nanc3 (and the savings goal) shows it before the statement does.
+const moveState = { message: null, error: null };
+
+function moveHtml(ctx, amount = "") {
+  const accounts = ctx.finance.accountList();
+  if (accounts.length < 2) return "";
+  const savings = accounts.find((account) => ctx.finance.accountKind(account) === "savings") ?? accounts[1];
+  const spending = accounts.find((account) => account !== savings) ?? accounts[0];
+  const options = (selected) => accounts.map((account) => `<option value="${esc(account)}"${account === selected ? " selected" : ""}>${esc(ctx.finance.accountName(account))}${ctx.finance.accountName(account) !== account ? ` (${esc(account)})` : ""}</option>`).join("");
+  const today = new Date();
+  const date = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, "0")}-${String(today.getDate()).padStart(2, "0")}`;
+  return `
+    <span id="move-money"></span>${heading("move money")}
+    <p class="hint">moved money in your banking app? add it here and it shows straight away. When the statement comes in, its own record replaces this one, so nothing counts twice.</p>
+    ${moveState.message ? `<p class="flash">${esc(moveState.message)}</p>` : ""}
+    ${moveState.error ? `<p class="error">${esc(moveState.error)}</p>` : ""}
+    <form class="editor move-form" data-form="move-money">
+      <div class="pair">
+        <label>from<span class="select-row"><select name="from">${options(spending)}</select><span class="caret" aria-hidden="true">▾</span></span></label>
+        <label>to<span class="select-row"><select name="to">${options(savings)}</select><span class="caret" aria-hidden="true">▾</span></span></label>
+      </div>
+      <div class="pair">
+        <label>amount<input name="amount" type="text" inputmode="decimal" placeholder="£" required autocomplete="off" value="${esc(amount)}"></label>
+        <label>date<input name="date" type="date" value="${date}" required></label>
+      </div>
+      <button type="submit" class="button solid">add the move</button>
+    </form>`;
+}
+
 // Each account: its name, and whether it's money to spend or savings.
 function accountsHtml(ctx) {
   const accounts = ctx.finance.accountList();
@@ -118,7 +214,7 @@ function accountsHtml(ctx) {
     <p class="hint">names show in the list and the balance; savings are counted apart from money to spend</p>`;
 }
 
-export function render(ctx) {
+export function render(ctx, params = {}) {
   const count = ctx.finance.transactions.length;
   return {
     crumbs: ["settings"],
@@ -131,7 +227,12 @@ export function render(ctx) {
       <p>${plural(count, "transaction")}, kept for the current month and the 12 before it.</p>
       <div class="row-buttons">${button("import a statement ›", "go", { to: "/import" }, { solid: true })}</div>
       ${accountsHtml(ctx)}
+      ${moveHtml(ctx, params.move ?? "")}
       ${BANK_CONNECTION ? `${heading("bank")}${bankHtml(ctx)}` : ""}
+      ${heading("PIN lock")}
+      ${pinHtml()}
+      ${heading("notifications")}
+      <div data-part="notifications">${notificationsHtml()}</div>
       ${heading("theme")}
       <div class="chips">${THEMES.map((choice) => `<button type="button" class="chip${choice === theme() ? " on" : ""}" ${action("me-theme", { value: choice })}>${choice}</button>`).join("")}</div>
       <p class="hint">auto follows this device's light and dark mode; the choice is kept on this device only</p>
@@ -143,6 +244,22 @@ export function render(ctx) {
 }
 
 export const actions = {
+  "push-on"(ctx) {
+    return pushAction(async () => {
+      await enablePush(ctx.cloud);
+      pushState.message = "notifications are on: try sending a test";
+    });
+  },
+  "push-off"(ctx) {
+    return pushAction(() => disablePush(ctx.cloud));
+  },
+  "push-test"(ctx) {
+    return pushAction(async () => {
+      const sent = await ctx.cloud.sendTestPush();
+      if (!sent) throw new Error("the server couldn't reach this device: try turning notifications off and on");
+      pushState.message = "sent: it should arrive in a few seconds";
+    });
+  },
   async "account-kind"(ctx, { account, value }) {
     await ctx.finance.saveAccount(account, { kind: value }).catch((problem) => alert(problem.message));
   },
@@ -200,6 +317,7 @@ export const actions = {
   async "me-sign-out"(ctx) {
     if (!confirm("sign out of f1nanc3 here?")) return;
     await ctx.cloud.signOut();
+    clearPin();
     ctx.finance.clear();
     ctx.go("/");
   },
@@ -221,6 +339,52 @@ export function renderSignIn() {
 }
 
 export const forms = {
+  async "pin-set"(ctx, form) {
+    pinState.message = null;
+    pinState.error = null;
+    const pin = form.elements.pin.value;
+    if (!validPin(pin)) pinState.error = "a PIN is 4 to 6 digits";
+    else if (pin !== form.elements.again.value) pinState.error = "those two don't match";
+    else {
+      await setPin(pin);
+      pinState.message = "PIN set: you'll need it next time f1nanc3 opens";
+    }
+    ctx.render();
+  },
+  async "pin-change"(ctx, form, submitter) {
+    pinState.message = null;
+    pinState.error = null;
+    const result = await checkPin(form.elements.current.value);
+    if (result === "signout") return ctx.signOutForPin();
+    if (result !== "ok") pinState.error = result === "wait" ? "too many tries: wait a moment" : "that's not your current PIN";
+    else if (submitter?.name === "remove") {
+      clearPin();
+      pinState.message = "PIN removed";
+    } else if (!validPin(form.elements.pin.value)) pinState.error = "a new PIN is 4 to 6 digits";
+    else {
+      await setPin(form.elements.pin.value);
+      pinState.message = "PIN changed";
+    }
+    ctx.render();
+  },
+  async "move-money"(ctx, form) {
+    moveState.message = null;
+    moveState.error = null;
+    const from = form.elements.from.value;
+    const to = form.elements.to.value;
+    const amount = Number(String(form.elements.amount.value).replace(/[£,\s]/g, ""));
+    const date = form.elements.date.value;
+    if (from === to) moveState.error = "pick two different accounts";
+    else if (!Number.isFinite(amount) || amount <= 0) moveState.error = "that amount doesn't look right";
+    if (moveState.error) return ctx.render();
+    try {
+      await ctx.finance.addMove({ from, to, amount, date });
+      moveState.message = `moved £${amount.toLocaleString("en-GB", { minimumFractionDigits: 2, maximumFractionDigits: 2 })} from ${ctx.finance.accountName(from)} to ${ctx.finance.accountName(to)}`;
+    } catch (problem) {
+      moveState.error = problem.message;
+    }
+    ctx.render();
+  },
   async "account-name"(ctx, form) {
     const name = form.elements.name.value.trim() || null;
     await ctx.finance.saveAccount(form.dataset.account, { name }).catch((problem) => alert(problem.message));

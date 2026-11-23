@@ -1,48 +1,20 @@
 // The budget: your savings goal, this month against your budgets, the
 // three plans and what each means for the goal, the budgets themselves
 // (yours to change), and where the non-essential money goes.
-import { latestBalances } from "../balances.js";
-import { biggestNonEssentials, budgetsFor, fullMonths, dailyAllowance, ESSENTIALS, FLEXIBLE, GOAL_MONTHS, monthProgress, outlook, PLANS, typicalSpending } from "../budget.js";
+import { biggestNonEssentials, ESSENTIALS, FLEXIBLE, GOAL_MONTHS, PLANS } from "../budget.js";
 import { displayName } from "../categories.js";
-import { monthlyIncome } from "../income.js";
-import { monthLabel, monthOf, pounds, sum } from "../money.js";
-import { findSubscriptions } from "../subscriptions.js";
+import { planPicture } from "../insights.js";
+import { monthLabel, monthOf, sum } from "../money.js";
 import { action, bar, button, esc, heading, notReady } from "../ui.js";
 
 const whole = (amount) => `£${Math.round(amount).toLocaleString("en-GB")}`;
 // "+£250" or "−£120".
 const signed = (amount) => `${amount < 0 ? "−" : "+"}${whole(Math.abs(amount))}`;
 
-// Everything the budget needs, from what's stored. Used here and on the
+// Everything the budget needs (js/insights.js). Used here and on the
 // overview.
 export function budgetPicture(ctx) {
-  const { finance } = ctx;
-  const transactions = finance.transactions;
-  const subs = findSubscriptions(transactions, finance.subscriptionSettings).filter((sub) => !sub.ended && !sub.hidden);
-  const fixedMerchants = new Set(subs.map((sub) => sub.merchant));
-  const fixed = Math.round(sum(subs.map((sub) => sub.monthly)) * 100) / 100;
-  // Plans use all your regular income (side income at its average); the
-  // goal uses your main pay alone.
-  const income = monthlyIncome(transactions);
-  const pay = income.total;
-  const savings = latestBalances(transactions).filter((b) => finance.accountKind(b.account) === "savings");
-  const saved = Math.round(sum(savings.map((b) => b.balance)) * 100) / 100;
-  const goal = Math.round(income.main * GOAL_MONTHS);
-  // Only months since your current pay started: a new job means new money.
-  const since = income.sources[0]?.first?.slice(0, 7) ?? null;
-  const counted = fullMonths(new Date(), 6, since);
-  const typical = typicalSpending(transactions, fixedMerchants, new Date(), since);
-  const plan = finance.budget.plan;
-  const own = finance.budget.amounts ?? {};
-  const outlooks = Object.fromEntries(Object.keys(PLANS).map((name) => [name, outlook({ pay, fixed, budgets: budgetsFor(typical, name, own), saved, goal })]));
-  const budgets = plan ? budgetsFor(typical, plan, own) : {};
-  const progress = plan ? monthProgress(transactions, budgets, fixedMerchants) : [];
-  return {
-    pay, income, since, counted, fixed, subs, fixedMerchants, saved, hasSavings: savings.length > 0, goal, typical, plan, own, budgets, outlooks,
-    current: plan ? outlook({ pay, fixed, budgets, saved, goal }) : null,
-    progress, allowance: plan ? dailyAllowance(progress) : 0,
-    typicalTotal: Math.round(sum(Object.values(typical)) * 100) / 100,
-  };
+  return planPicture(ctx.finance.insightData());
 }
 
 // A category's bar for this month: how much of its budget is gone, and
