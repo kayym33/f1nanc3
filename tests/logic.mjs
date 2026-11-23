@@ -15,6 +15,8 @@ import { expectedIncome, monthlyIncome, regularIncome } from "../js/income.js";
 import { coveredByStatement, moveRows, partnerId } from "../js/manual.js";
 import { paydayNudge } from "../js/payday.js";
 import { alertsFor } from "../js/insights.js";
+import { ask, parseTime } from "../js/ask.js";
+import { goalMonth, whatIf } from "../js/whatif.js";
 import { categoryGrid, gridCsv, inOut, months as trendMonths, niceCeiling, pace } from "../js/trends.js";
 import { longestWithout, regularPayments, yearStats } from "../js/wrapped.js";
 
@@ -601,6 +603,86 @@ await check("the PIN lock", async () => {
   assert.equal(await pin.checkPin("0000", now), "signout");
   pin.clearPin();
   assert.equal(pin.hasPin(), false);
+});
+
+await check("the command line", () => {
+  const today = new Date(2026, 10, 23, 12);
+  const tx = [
+    { id: "a", booked_on: "2026-06-03", amount: -3.1, merchant: "costa coffee", description: "COSTA", category: "eating out" },
+    { id: "b", booked_on: "2026-09-10", amount: -4.2, merchant: "pret a manger", description: "PRET", category: "eating out" },
+    { id: "c", booked_on: "2026-11-02", amount: -55, merchant: "tesco stores", description: "TESCO", category: "groceries" },
+    { id: "d", booked_on: "2026-11-20", amount: -22, merchant: "aldi stores", description: "ALDI", category: "groceries" },
+    { id: "e", booked_on: "2026-10-15", amount: -500, merchant: "to a/c …5678", description: "x", category: "transfers" },
+    { id: "f", booked_on: "2026-10-26", amount: 2100, merchant: "acme ltd", description: "ACME PAY", category: "income" },
+    { id: "g", booked_on: "2026-05-01", amount: -3, merchant: "costa coffee", description: "COSTA", category: "eating out" },
+  ];
+  // "june" is the last one that's been: this year's in November, last year's in March.
+  assert.equal(parseTime(["since", "june"], today).from, "2026-06-01");
+  assert.equal(parseTime(["since", "december"], today).from, "2025-12-01");
+  assert.deepEqual(parseTime(["in", "oct"], today), { from: "2026-10-01", to: "2026-10-31", label: "in october", rest: [] });
+  assert.equal(parseTime(["last", "month"], today).to, "2026-10-31");
+  const coffee = ask("coffee since june", tx, today);
+  assert.equal(coffee.kind, "search");
+  assert.equal(coffee.out, 7.3);
+  assert.equal(coffee.count, 2);
+  assert.equal(coffee.months.length, 6);
+  assert.deepEqual(coffee.recent.map((t) => t.id), ["b", "a"]);
+  assert.equal(ask("groceries this month", tx, today).out, 77);
+  // Transfers between your own accounts only when you ask for them.
+  assert.ok(!ask("biggest 5", tx, today).rows.some((t) => t.id === "e"));
+  assert.equal(ask("transfers", tx, today).out, 500);
+  assert.deepEqual(ask("biggest 2", tx, today).rows.map((t) => t.id), ["c", "d"]);
+  const vs = ask("tesco vs aldi this month", tx, today);
+  assert.deepEqual(vs.sides.map((side) => side.out), [55, 22]);
+  assert.equal(ask("acme", tx, today).in, 2100);
+  assert.equal(ask("zzz", tx, today).count, 0);
+  assert.equal(ask("help", tx, today).kind, "help");
+  assert.equal(ask("   ", tx, today).kind, "empty");
+  assert.equal(ask("<script>", tx, today).kind, "search");
+  // Plain English: filler is skipped, other names mean the same things.
+  assert.deepEqual(ask("biggest spend this year?", tx, today).rows.map((t) => t.id), ["c", "d", "b", "a", "g"]);
+  assert.equal(ask("what was my most expensive purchase this month", tx, today).rows[0].id, "c");
+  assert.equal(ask("top three payments in november", tx, today).count, 3);
+  assert.equal(ask("how much did i spend on coffee since june", tx, today).out, 7.3);
+  assert.equal(ask("coffees", tx, today).term, "coffee");
+  assert.equal(ask("restaurants since june", tx, today).term, "eating out");
+  assert.equal(ask("food shop this month", tx, today).out, 77);
+  assert.equal(ask("how much did i earn", tx, today).in, 2100);
+  assert.equal(ask("what came in last month", tx, today).in, 2100);
+  assert.equal(ask("everything this month", tx, today).out, 77);
+  assert.equal(ask("tesco compared to aldi", tx, today).kind, "vs");
+  const places = ask("where do i spend the most", tx, today);
+  assert.equal(places.kind, "places");
+  assert.equal(places.rows[0].merchant, "tesco stores");
+  const split = ask("spending by category this year", tx, today);
+  assert.deepEqual(split.rows.map((row) => row.category), ["groceries", "eating out"]);
+  assert.equal(ask("what can i ask?", tx, today).kind, "help");
+});
+
+await check("what-if mode", () => {
+  const picture = {
+    pay: 2150, fixed: 1035, saved: 1400, goal: 3225,
+    typical: { groceries: 260, "eating out": 180, shopping: 150, transport: 0 },
+    subs: [
+      { merchant: "netflix", name: "Netflix", kind: "subscription", monthly: 11 },
+      { merchant: "rent", name: "Rent", kind: "bill", monthly: 1000 },
+      { merchant: "gym", name: "Gym", kind: "subscription", monthly: 24 },
+    ],
+  };
+  const now = whatIf(picture);
+  // Only categories you spend in; only subscriptions (not bills) to cancel.
+  assert.deepEqual(now.rows.map((row) => row.category), ["groceries", "eating out", "shopping"]);
+  assert.deepEqual(now.subs.map((sub) => sub.merchant), ["netflix", "gym"]);
+  assert.equal(now.before.saving, 2150 - 1035 - 590);
+  assert.equal(now.after.saving, now.before.saving);
+  const tried = whatIf(picture, { cuts: { "eating out": 50, shopping: 90 }, cancelled: new Set(["gym", "rent"]) });
+  // Cuts stop at half; rent can't be cancelled.
+  assert.equal(tried.rows.find((row) => row.category === "shopping").cut, 50);
+  assert.equal(tried.after.fixed, 1011);
+  assert.equal(tried.after.saving, 2150 - 1011 - (260 + 90 + 75));
+  assert.ok(tried.after.monthsToGoal < tried.before.monthsToGoal);
+  assert.equal(goalMonth(3, new Date(2026, 10, 23)), "2027-02");
+  assert.equal(goalMonth(null), null);
 });
 
 await check("the page's security policy allows its own inline script", async () => {

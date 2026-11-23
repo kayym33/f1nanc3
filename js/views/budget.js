@@ -63,6 +63,7 @@ export function render(ctx) {
         <p><span class="big">${esc(whole(p.saved))}</span> of ${esc(whole(p.goal))} saved <span class="muted">· ${Math.round(share * 100)}%</span></p>
         <p class="goal-bar">${bar(share, 30)}</p>
         <p class="hint">${GOAL_MONTHS} × your typical pay (${esc(whole(p.income.main))})${p.hasSavings ? "" : " · mark your savings account in settings ⚙ so it counts"}${p.current ? ` · ${p.current.monthsToGoal === 0 ? "reached: keep going" : `goal in ${months(p.current.monthsToGoal)} on the ${PLANS[p.plan].label} plan`}` : ""}</p>
+        <p><a href="#/budget/whatif" class="whatif-link">what if you spent less? try it →</a></p>
       </div>
 
       ${p.plan ? `
