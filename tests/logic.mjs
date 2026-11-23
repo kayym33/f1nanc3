@@ -639,6 +639,24 @@ await check("the command line", () => {
   assert.equal(ask("help", tx, today).kind, "help");
   assert.equal(ask("   ", tx, today).kind, "empty");
   assert.equal(ask("<script>", tx, today).kind, "search");
+  // Plain English: filler is skipped, other names mean the same things.
+  assert.deepEqual(ask("biggest spend this year?", tx, today).rows.map((t) => t.id), ["c", "d", "b", "a", "g"]);
+  assert.equal(ask("what was my most expensive purchase this month", tx, today).rows[0].id, "c");
+  assert.equal(ask("top three payments in november", tx, today).count, 3);
+  assert.equal(ask("how much did i spend on coffee since june", tx, today).out, 7.3);
+  assert.equal(ask("coffees", tx, today).term, "coffee");
+  assert.equal(ask("restaurants since june", tx, today).term, "eating out");
+  assert.equal(ask("food shop this month", tx, today).out, 77);
+  assert.equal(ask("how much did i earn", tx, today).in, 2100);
+  assert.equal(ask("what came in last month", tx, today).in, 2100);
+  assert.equal(ask("everything this month", tx, today).out, 77);
+  assert.equal(ask("tesco compared to aldi", tx, today).kind, "vs");
+  const places = ask("where do i spend the most", tx, today);
+  assert.equal(places.kind, "places");
+  assert.equal(places.rows[0].merchant, "tesco stores");
+  const split = ask("spending by category this year", tx, today);
+  assert.deepEqual(split.rows.map((row) => row.category), ["groceries", "eating out"]);
+  assert.equal(ask("what can i ask?", tx, today).kind, "help");
 });
 
 await check("what-if mode", () => {

@@ -60,9 +60,11 @@ serves it as it is.
   Bank and CSV transactions don't double up (same account, date and
   amount). A banner shows from 7 days before the bank's approval runs out.
 
-- **Command line** (the `>_` at the top, or press `/`): ask in a few
-  fixed words, like `coffee since june`, `biggest 5`, `tesco vs aldi this
-  month` or `help`. Answered on your device: no AI, nothing sent anywhere.
+- **Command line** (the `>_` at the top, or press `/`): ask in plain-ish
+  English, like `how much did i spend on coffee since june`, `biggest spend
+  this year`, `where do i spend the most`, `by category last month`,
+  `tesco vs aldi` or `help`. Answered on your device from a fixed set of
+  words: no AI, nothing sent anywhere.
 
 - **What if** (budget → "what if you spent less?"): a slider per category
   and a box per subscription, and see what you'd save a month and when

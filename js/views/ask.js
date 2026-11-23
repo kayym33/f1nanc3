@@ -2,13 +2,13 @@
 // fixed words and the answer prints below it, terminal-style. Only the
 // questions are kept (in memory, for this visit); answers are worked out
 // again on every render, so they follow the data and go when it's cleared.
-import { ask, HELP } from "../ask.js";
+import { ask, HELP, PLACE_NAMES } from "../ask.js";
 import { displayName } from "../categories.js";
 import { dayLabel, monthLabel, pounds } from "../money.js";
 import { action, bar, esc, notReady } from "../ui.js";
 
 const KEEP = 12;
-const SHORTCUTS = ["biggest 5", "this month", "eating out last month", "help"];
+const SHORTCUTS = ["biggest spend this month", "where do i spend the most", "by category last month", "help"];
 const state = { asked: [], text: "" };
 
 const money = (amount) => pounds(amount);
@@ -22,7 +22,8 @@ function answerHtml(answer) {
   if (answer.kind === "help") {
     return line("say what to look for, and when:", "dim")
       + HELP.map(([example, about]) => `<p class="ask-line ask-help"><button type="button" class="ask-example" ${action("ask-run", { q: example })}>${esc(example)}</button> <span class="dim">${esc(about)}</span></p>`).join("")
-      + line("words like coffee, takeaway, fuel, taxi, trains, flights, supermarket and streaming mean the usual places. no AI: everything stays on this device", "dim");
+      + line(esc(`everyday words mean the usual places: ${PLACE_NAMES.join(", ")}. categories have other names too (food shop, restaurants, travel, fun, wages...). anything else is looked for in the shops' names. words like "how much did i spend on" are skipped`), "dim")
+      + line("no AI: everything stays on this device", "dim");
   }
 
   if (answer.kind === "biggest") {
@@ -34,6 +35,31 @@ function answerHtml(answer) {
           <span class="who">${esc(displayName(t.merchant))} <small>${esc(dayLabel(t.booked_on))}</small></span>
           <span class="meter">${bar(-t.amount / most, 10)}</span>
           <span class="amount">${esc(money(-t.amount))}</span>
+        </li>`).join("")}</ul>`;
+  }
+
+  if (answer.kind === "places") {
+    if (!answer.rows.length) return line("nothing found. try <b>help</b>", "dim");
+    const most = answer.rows[0].total;
+    return line(esc(`top ${answer.rows.length} places${answer.term ? ` · ${answer.term}` : ""}${answer.when ? ` · ${answer.when}` : ""}`), "dim")
+      + `<ul class="ask-rows">${answer.rows.map((row) => `
+        <li ${action("ask-run", { q: `${row.merchant}${answer.when ? ` ${answer.when}` : ""}` })}>
+          <span class="who">${esc(displayName(row.merchant))} <small>${row.count}×</small></span>
+          <span class="meter">${bar(row.total / most, 10)}</span>
+          <span class="amount">${esc(money(row.total))}</span>
+        </li>`).join("")}</ul>`;
+  }
+
+  if (answer.kind === "categories") {
+    if (!answer.rows.length) return line("nothing found. try <b>help</b>", "dim");
+    const most = answer.rows[0].total;
+    return line(esc(`by category${answer.term ? ` · ${answer.term}` : ""}${answer.when ? ` · ${answer.when}` : ""}`), "dim")
+      + line(`<b>${esc(money(answer.total))}</b> out`)
+      + `<ul class="ask-rows">${answer.rows.map((row) => `
+        <li ${action("ask-run", { q: `${row.category}${answer.when ? ` ${answer.when}` : ""}` })}>
+          <span class="who">${esc(row.category)} <small>${row.total / answer.total < 0.01 ? "<1" : Math.round((row.total / answer.total) * 100)}%</small></span>
+          <span class="meter">${bar(row.total / most, 10)}</span>
+          <span class="amount">${esc(money(row.total))}</span>
         </li>`).join("")}</ul>`;
   }
 
