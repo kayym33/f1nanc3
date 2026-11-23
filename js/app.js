@@ -10,6 +10,7 @@ import { isPrivate, setPrivate, watchMoney } from "./privacy.js";
 import * as lock from "./views/lock.js";
 import { applyTheme } from "./theme.js";
 import { esc, WIDE, wide } from "./ui.js";
+import * as askView from "./views/ask.js";
 import * as importer from "./views/importer.js";
 import * as me from "./views/me.js";
 import * as overview from "./views/overview.js";
@@ -18,6 +19,7 @@ import * as budget from "./views/budget.js";
 import * as subs from "./views/subs.js";
 import * as charts from "./views/charts.js";
 import * as transactions from "./views/transactions.js";
+import * as whatif from "./views/whatif.js";
 import * as wrapped from "./views/wrapped.js";
 
 const NOISE = " .:;'`~*+-,";
@@ -39,6 +41,8 @@ const ROUTES = [
   [/^\/river\/(?<month>\d{4}-\d{2})$/, "river", river.render, "/river"],
   [/^\/wrapped$/, "wrapped", wrapped.render, "/"],
   [/^\/budget$/, "budget", budget.render, "/budget"],
+  [/^\/budget\/whatif$/, "whatif", whatif.render, "/budget"],
+  [/^\/ask$/, "ask", askView.render, "/ask"],
   [/^\/subs$/, "subs", subs.render, "/subs"],
   [/^\/charts$/, "charts", charts.render, "/charts"],
   [/^\/subs\/(?<key>[^/]+)$/, "sub", subs.renderOne, "/subs"],
@@ -46,7 +50,7 @@ const ROUTES = [
   [/^\/me$/, "me", me.render, "/settings"],
   [/^\/import$/, "import", importer.render, "/settings"],
 ];
-const VIEWS = [lock, overview, transactions, river, budget, subs, charts, wrapped, importer, me];
+const VIEWS = [lock, overview, transactions, river, budget, subs, charts, wrapped, importer, me, askView, whatif];
 const handlers = (kind) => Object.assign({}, ...VIEWS.map((view) => view[kind] ?? {}));
 const ACTIONS = handlers("actions");
 const FORMS = handlers("forms");
@@ -124,6 +128,8 @@ function render() {
   const signedIn = cloud.signedIn;
   // With a PIN set, nothing shows (or loads) until it's entered.
   const locked = signedIn && isLocked();
+  // The command line's questions go with the data.
+  if (!signedIn || locked) askView.forget();
   const result = !signedIn ? me.renderSignIn() : locked ? lock.renderLock() : current.view(ctx, current.params);
   const fullPath = location.hash;
   const sameRoute = fullPath === currentPath;
@@ -141,7 +147,8 @@ function render() {
   eye.hidden = !signedIn || locked;
   eye.setAttribute("aria-pressed", String(isPrivate()));
   eye.title = isPrivate() ? "show amounts" : "hide amounts";
-  for (const link of document.querySelectorAll("nav a, a.cog")) {
+  document.querySelector("a.ask-link").hidden = !signedIn || locked;
+  for (const link of document.querySelectorAll("nav a, a.cog, a.ask-link")) {
     link.classList.toggle("on", signedIn && link.getAttribute("href") === `#${current.tab}`);
   }
   document.querySelector("a.cog").hidden = !signedIn || locked;
@@ -252,9 +259,15 @@ document.addEventListener("visibilitychange", () => {
   }
   if (Date.now() - loadedAt > STALE_MS) load();
 });
-// Keys: the PIN pad first.
+// Keys: the PIN pad first; then / opens the command line (unless you're
+// typing somewhere).
 document.addEventListener("keydown", (event) => {
-  if (cloud.signedIn && isLocked()) lock.lockKeys(ctx, event);
+  if (cloud.signedIn && isLocked()) return lock.lockKeys(ctx, event);
+  const typing = event.target.closest?.("input, textarea, select, [contenteditable]");
+  if (cloud.signedIn && event.key === "/" && !typing && !event.metaKey && !event.ctrlKey && !event.altKey) {
+    event.preventDefault();
+    ctx.go("/ask");
+  }
 });
 matchMedia("(prefers-color-scheme: dark)").addEventListener("change", applyTheme);
 // Crossing between phone and desktop widths changes some views' markup.

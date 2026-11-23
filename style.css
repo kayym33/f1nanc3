@@ -775,3 +775,63 @@ body.wrapped-open nav { display: none; }
 @media (prefers-reduced-motion: reduce) {
   body { transition: none; }
 }
+
+/* The command line (views/ask.js): a terminal log, shortcuts, the prompt. */
+.ask-link { color: var(--muted); text-decoration: none; font-weight: 700; font-size: 16px; padding: 4px 6px; }
+.ask-link.on { color: var(--accent-text); }
+.ask-link[hidden] { display: none; }
+.ask { display: flex; flex-direction: column; gap: 14px; }
+.ask-log { display: flex; flex-direction: column; gap: 18px; }
+.ask-entry { display: flex; flex-direction: column; gap: 4px; }
+.ask-line { margin: 0; color: var(--ink); line-height: 1.55; overflow-wrap: anywhere; }
+.ask-line.dim, .ask .dim { color: var(--muted); }
+.ask-q { color: var(--accent-text); font-weight: 700; }
+.ask .prompt { color: var(--accent-text); font-weight: 700; }
+.ask-help { display: flex; flex-wrap: wrap; gap: 4px 10px; align-items: baseline; }
+.ask-example { appearance: none; font: inherit; font-size: 13px; color: var(--ink); background: transparent; border: 1px solid var(--rule); padding: 5px 8px; cursor: pointer; }
+.ask-example:hover, .ask-example:active { background: var(--hover); }
+.ask-shortcuts { display: flex; flex-wrap: wrap; gap: 6px; }
+.ask-rows, .ask-months { list-style: none; margin: 2px 0; padding: 0; }
+.ask-rows li { display: grid; grid-template-columns: minmax(0, 1fr) auto auto; gap: 10px; align-items: baseline; padding: 5px 0; border-bottom: 1px solid var(--rule); }
+.ask-rows li[data-action] { cursor: pointer; }
+.ask-rows li[data-action]:active, .ask-rows li[data-action]:hover { background: var(--hover); }
+.ask-rows .who { color: var(--ink); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.ask-rows .who small { color: var(--muted); }
+.ask-rows .amount, .ask-months .amount { text-align: right; font-variant-numeric: tabular-nums; color: var(--ink); }
+.ask-rows .amount.in { color: var(--good, var(--ink)); }
+.ask .meter { white-space: nowrap; letter-spacing: -0.05em; }
+.ask-months li { display: grid; grid-template-columns: 3.5ch minmax(0, auto) 1fr; gap: 10px; align-items: baseline; }
+.ask-months .m { color: var(--muted); }
+.ask-form { display: flex; align-items: center; gap: 8px; border-top: 1px solid var(--rule); padding-top: 12px; }
+.ask-form .prompt { font-size: 18px; }
+.ask-form input { flex: 1; min-width: 0; font: inherit; font-size: 16px; color: var(--ink); background: transparent; border: none; padding: 10px 0; caret-color: var(--accent); }
+.ask-form input:focus { outline: none; }
+
+/* What-if mode (views/whatif.js): sliders, before/after bars, subscriptions to cancel. */
+main[data-view="whatif"] { max-width: 720px; }
+.whatif-link { color: var(--accent-text); }
+.whatif-head p { margin: 2px 0; }
+.whatif-save .big { font-size: 30px; font-weight: 700; color: var(--ink); font-variant-numeric: tabular-nums; }
+.whatif-goal { color: var(--accent-text); }
+.whatif-rows { list-style: none; margin: 0; padding: 0; }
+.whatif-rows li { padding: 10px 0; border-bottom: 1px solid var(--rule); display: flex; flex-direction: column; gap: 6px; }
+.whatif-label { display: flex; justify-content: space-between; gap: 10px; color: var(--ink); }
+.whatif-cut { color: var(--muted); font-size: 13px; text-align: right; }
+.whatif-bar { position: relative; height: 10px; }
+.whatif-bar span { position: absolute; left: 0; top: 0; bottom: 0; }
+.whatif-bar .ghost { background: var(--rule); }
+.whatif-bar .fill { background: var(--muted); transition: width 0.2s ease; }
+.whatif-bar .fill.cut { background: var(--accent); }
+.whatif-slide { display: flex; align-items: center; gap: 12px; }
+.whatif-slide input { flex: 1; min-width: 0; height: 28px; padding: 0; border: 0; background: transparent; accent-color: var(--accent); -webkit-appearance: auto; appearance: auto; }
+.whatif-slide input:focus { outline: none; }
+.whatif-slide input:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+.whatif-slide .amount { min-width: 5ch; text-align: right; color: var(--ink); font-weight: 700; font-variant-numeric: tabular-nums; }
+.whatif-subs { display: grid; grid-template-columns: repeat(auto-fill, minmax(140px, 1fr)); gap: 8px; }
+.whatif-sub { display: flex; gap: 10px; align-items: center; padding: 10px; border: 1px solid var(--rule); cursor: pointer; color: var(--ink); }
+.whatif-sub.on { border-color: var(--accent); }
+.whatif-sub input { width: 20px; height: 20px; padding: 0; margin: 0; flex: none; accent-color: var(--accent); -webkit-appearance: checkbox; appearance: auto; }
+.whatif-sub > span { display: flex; flex-direction: column; min-width: 0; }
+.whatif-sub > span > span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.whatif-sub small { color: var(--muted); }
+@media (prefers-reduced-motion: reduce) { .whatif-bar .fill { transition: none; } }

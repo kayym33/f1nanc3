@@ -5,9 +5,9 @@
 const CACHE = "f1nanc3-shell";
 const SHELL = [
   "./", "index.html", "style.css", "manifest.webmanifest", "icons/icon-180.png", "icons/icon-192.png",
-  "js/app.js", "js/balances.js", "js/bank.js", "js/budget.js", "js/categories.js", "js/chart.js", "js/chartstyle.js", "js/cloud.js", "js/config.js", "js/csv.js", "js/data.js", "js/income.js", "js/manual.js", "js/flow.js",
-  "js/money.js", "js/push.js", "js/insights.js", "js/pin.js", "js/privacy.js", "js/payday.js", "js/services.js", "js/subscriptions.js", "js/summary.js", "js/trends.js", "js/theme.js", "js/ui.js", "js/wrapped.js",
-  "js/views/budget.js", "js/views/charts.js", "js/views/importer.js", "js/views/lock.js", "js/views/me.js", "js/views/overview.js", "js/views/river.js", "js/views/subs.js", "js/views/transactions.js", "js/views/wrapped.js",
+  "js/app.js", "js/ask.js", "js/balances.js", "js/bank.js", "js/budget.js", "js/categories.js", "js/chart.js", "js/chartstyle.js", "js/cloud.js", "js/config.js", "js/csv.js", "js/data.js", "js/income.js", "js/manual.js", "js/flow.js",
+  "js/money.js", "js/push.js", "js/insights.js", "js/pin.js", "js/privacy.js", "js/payday.js", "js/services.js", "js/subscriptions.js", "js/summary.js", "js/trends.js", "js/theme.js", "js/ui.js", "js/whatif.js", "js/wrapped.js",
+  "js/views/ask.js", "js/views/budget.js", "js/views/charts.js", "js/views/importer.js", "js/views/lock.js", "js/views/me.js", "js/views/overview.js", "js/views/river.js", "js/views/subs.js", "js/views/transactions.js", "js/views/whatif.js", "js/views/wrapped.js",
 ];
 
 self.addEventListener("install", (event) => {

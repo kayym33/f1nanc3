@@ -60,6 +60,14 @@ serves it as it is.
   Bank and CSV transactions don't double up (same account, date and
   amount). A banner shows from 7 days before the bank's approval runs out.
 
+- **Command line** (the `>_` at the top, or press `/`): ask in a few
+  fixed words, like `coffee since june`, `biggest 5`, `tesco vs aldi this
+  month` or `help`. Answered on your device: no AI, nothing sent anywhere.
+
+- **What if** (budget → "what if you spent less?"): a slider per category
+  and a box per subscription, and see what you'd save a month and when
+  you'd reach your goal. Nothing is saved.
+
 - **Notifications** (settings → notifications, per device; on an iPhone,
   the home-screen app): a budget category at 80% and over, and a nudge
   before payday to move what's spare to savings. Checked at 9am every day
