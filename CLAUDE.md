@@ -55,7 +55,7 @@ python tools/make_icons.py    # redraws icons/
   - locks on open and after 5 minutes hidden; nothing is fetched while locked, and the data is cleared from memory when it locks
   - 5 wrong tries starts a 30s wait; 10 signs out and forgets the PIN
   - it's a screen lock, not encryption: someone with devtools on an unlocked browser can remove it, and the password plus RLS are what protect the data
-- **Privacy mode (`js/privacy.js`)**: a MutationObserver wraps every `£…` in `<span class="money">` (or marks the SVG `<text>`), and `body.private` blurs them. Canvas drawing (the river) checks `isPrivate()` itself, so any new canvas text must too.
+- **Privacy mode (`js/privacy.js`)**: a MutationObserver wraps every `£…` in `<span class="money">` (or marks the SVG `<text>`), with the real amount in an inner span and the mask (`£xxx.xx`, same for every size, sign kept) in `data-mask`; `body.private` shows the mask instead. SVG `<text>` has its text swapped while private (toggling re-renders, so charts redraw). Amount inputs (budget, move money) are still blurred. Canvas drawing (the river) checks `isPrivate()` itself, so any new canvas text must too.
 - **Sign-out uses `scope=local`**. Supabase's default signs out every device, t1ld3 included.
 - **Server**:
   - the cron functions compare `x-cron-secret` with `_shared/secret.ts` (constant time)

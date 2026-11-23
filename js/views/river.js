@@ -32,7 +32,7 @@ const drawn = new Map();
 
 const still = () => matchMedia("(prefers-reduced-motion: reduce)").matches;
 // Privacy mode hides the canvas's amounts too (the page's are blurred by CSS).
-const short = (amount) => (isPrivate() ? "£•••" : `£${Math.round(amount).toLocaleString("en-GB")}`);
+const short = (amount) => (isPrivate() ? "£xxx.xx" : `£${Math.round(amount).toLocaleString("en-GB")}`);
 
 function hash(a, b) {
   let h = Math.imul(a ^ 0x9e3779b9, 0x85ebca6b) ^ Math.imul(b + 0x632be5ab, 0xc2b2ae35);

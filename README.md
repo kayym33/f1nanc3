@@ -69,7 +69,7 @@ serves it as it is.
 - **PIN lock** (settings → PIN lock, per device): asks for a 4–6 digit PIN
   when f1nanc3 opens and after 5 minutes away, and loads nothing until
   it's right. 10 wrong tries signs you out.
-- **Privacy mode**: the eye at the top blurs every amount, charts and the
+- **Privacy mode**: the eye at the top shows every amount as £xxx.xx, charts and the
   river included, until you tap it again.
 
 ## Setting it up (once)

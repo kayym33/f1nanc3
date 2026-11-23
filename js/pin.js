@@ -65,7 +65,7 @@ export function clearPin() {
   write(sessionStorage, UNLOCKED_KEY, null);
 }
 
-// How many digits the PIN has, so the dots match.
+// How many digits the PIN has, so the lock screen shows the right number of _.
 export function pinLength() {
   return read(localStorage, KEY)?.length ?? 4;
 }

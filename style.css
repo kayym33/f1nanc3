@@ -522,24 +522,27 @@ nav a.on::before { content: ""; position: absolute; left: 0; right: 0; top: 0; h
 .budget-link span:first-child { color: var(--accent); }
 main[data-view="budget"] { max-width: 820px; }
 
-/* The PIN lock screen. */
-.lock { max-width: 320px; margin: 30px auto; text-align: center; }
-.lock-title { color: var(--ink); font-size: 18px; margin: 0 0 18px; }
-.dots { display: flex; justify-content: center; gap: 14px; margin-bottom: 8px; }
-.dots .dot { width: 14px; height: 14px; border: 2px solid var(--ink); border-radius: 50%; }
-.dots .dot.on { background: var(--ink); }
-.dots.shake { animation: shake 0.4s; }
+/* The PIN lock screen, as a terminal (views/lock.js). */
+.lock { max-width: 360px; margin: 0 auto; display: flex; flex-direction: column; gap: 28px; min-height: calc(100dvh - 160px); }
+.lock-screen { flex-grow: 1; display: flex; flex-direction: column; justify-content: center; gap: 10px; font-size: 16px; line-height: 1.5; }
+.lock-screen p { margin: 0; }
+.lock-command { color: var(--muted); }
+.lock-pin { display: flex; gap: 8px; align-items: center; color: var(--ink); }
+.lock-pin .pin-text { letter-spacing: 6px; font-size: 22px; font-weight: 700; color: var(--accent-text); }
+.lock-pin .cursor { display: inline-block; width: 10px; height: 20px; background: var(--accent); animation: blink 1.1s steps(1) infinite; }
+@keyframes blink { 50% { opacity: 0; } }
+.lock-pin.shake { animation: shake 0.4s; }
 @keyframes shake { 20%, 60% { transform: translateX(-8px); } 40%, 80% { transform: translateX(8px); } }
-.lock-message { min-height: 1.5em; color: var(--warning); margin: 6px 0 14px; }
-.keypad { display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; }
+.lock-message { min-height: 1.5em; color: var(--warning); }
+.keypad { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; }
 .keypad .key {
-  appearance: none; font: inherit; font-size: 24px; font-weight: 700; color: var(--ink); background: transparent;
-  border: 1px solid var(--ink); border-radius: 50%; aspect-ratio: 1; width: 100%; max-width: 76px; margin: 0 auto; cursor: pointer;
+  appearance: none; font: inherit; font-size: 20px; color: var(--ink); background: transparent;
+  border: 1px solid var(--rule); border-radius: 0; height: 64px; cursor: pointer;
 }
 .keypad .key:active, .keypad .key:hover { background: var(--hover); }
-.lock .forgot { margin-top: 22px; }
+.lock .forgot { align-self: center; appearance: none; font: inherit; font-size: 13px; color: var(--muted); background: transparent; border: none; text-decoration: underline; padding: 12px; cursor: pointer; }
 .pin-form button[type="submit"] { margin-top: 12px; }
-@media (prefers-reduced-motion: reduce) { .dots.shake { animation: none; } }
+@media (prefers-reduced-motion: reduce) { .lock-pin.shake, .lock-pin .cursor { animation: none; } }
 
 /* Privacy mode: the 👁 in the header; every amount blurred. */
 .eye { appearance: none; border: 0; background: none; color: var(--muted); padding: 4px 6px; cursor: pointer; display: inline-flex; }
@@ -547,8 +550,8 @@ main[data-view="budget"] { max-width: 820px; }
 .eye .slash { display: none; }
 .eye[aria-pressed="true"] { color: var(--accent-text); }
 .eye[aria-pressed="true"] .slash { display: inline; }
-body.private .money { filter: blur(6px); user-select: none; }
-body.private svg text.money { opacity: 0; }
+body.private span.money > span { display: none; }
+body.private span.money::before { content: attr(data-mask); }
 body.private .budget-amount input, body.private .move-form input[name="amount"] { filter: blur(5px); }
 body.private .budget-amount input:focus, body.private .move-form input[name="amount"]:focus { filter: none; }
 
